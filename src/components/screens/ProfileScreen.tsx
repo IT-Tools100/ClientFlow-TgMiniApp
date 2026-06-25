@@ -29,7 +29,7 @@ export function ProfileScreen() {
         <GlassCard className="p-4">
           <p className="text-sm leading-6 text-app-muted">
             Mobile-first CRM concept for clients, tasks, and deals. This stage keeps everything in
-            frontend mock state and is ready for a later Supabase layer.
+            live Supabase database state for clients, tasks, deals, and activities.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <InfoTile label="Version" value="0.4 demo" />

@@ -1,5 +1,11 @@
-import { deals as mockDeals } from "@/data/mockData";
-import { DEMO_USER_ID, getSupabaseClient } from "@/lib/supabase";
+import { DEMO_USER_ID } from "@/lib/supabase";
+import {
+  clampPercent,
+  nullableUuid,
+  numericValue,
+  requireSupabaseClient,
+  throwSupabaseError
+} from "@/lib/services/shared";
 import type { Deal, DealStatus } from "@/types";
 import type { DealRow } from "@/types/database";
 
@@ -13,14 +19,6 @@ export interface DealUpsertInput {
 
 const dealStatuses = new Set<DealStatus>(["New", "Negotiation", "Waiting Payment", "Paid", "Lost"]);
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function createId(prefix: string) {
-  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
-}
-
 function normalizeStatus(value: string | null | undefined): DealStatus {
   return value && dealStatuses.has(value as DealStatus) ? (value as DealStatus) : "New";
 }
@@ -30,32 +28,16 @@ function mapRowToDeal(row: DealRow): Deal {
     id: row.id,
     clientId: row.client_id ?? "",
     title: row.title,
-    amount: Number(row.amount ?? 0),
+    amount: numericValue(row.amount),
     status: normalizeStatus(row.status),
-    probability: Number(row.probability ?? 0),
+    probability: clampPercent(row.probability),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
-function mapInputToDeal(input: DealUpsertInput, id = createId("deal"), createdAt = todayIsoDate()): Deal {
-  return {
-    id,
-    clientId: input.clientId,
-    title: input.title.trim(),
-    amount: Number(input.amount) || 0,
-    status: input.status,
-    probability: Math.min(100, Math.max(0, Number(input.probability) || 0)),
-    createdAt,
-    updatedAt: createdAt
-  };
-}
-
 export async function getDeals(): Promise<Deal[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return mockDeals.map((deal) => ({ ...deal }));
-  }
+  const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
@@ -65,66 +47,57 @@ export async function getDeals(): Promise<Deal[]> {
       .order("created_at", { ascending: false });
 
     if (error || !data) {
-      return mockDeals.map((deal) => ({ ...deal }));
+      throwSupabaseError("deals", "select", error);
     }
 
     return data.map(mapRowToDeal);
-  } catch {
-    return mockDeals.map((deal) => ({ ...deal }));
+  } catch (error) {
+    throwSupabaseError("deals", "select", error);
   }
 }
 
 export async function createDeal(input: DealUpsertInput): Promise<Deal> {
-  const fallbackDeal = mapInputToDeal(input);
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return fallbackDeal;
-  }
+  const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("deals")
       .insert({
         user_id: DEMO_USER_ID,
-        client_id: input.clientId,
+        client_id: nullableUuid(input.clientId),
         title: input.title.trim(),
-        amount: Number(input.amount) || 0,
+        amount: numericValue(input.amount),
         status: input.status,
-        probability: Math.min(100, Math.max(0, Number(input.probability) || 0))
+        probability: clampPercent(input.probability)
       })
       .select("*")
       .single();
 
     if (error || !data) {
-      return fallbackDeal;
+      throwSupabaseError("deals", "insert", error);
     }
 
     return mapRowToDeal(data);
-  } catch {
-    return fallbackDeal;
+  } catch (error) {
+    throwSupabaseError("deals", "insert", error);
   }
 }
 
 export async function updateDeal(
   id: string,
-  input: DealUpsertInput,
-  existingDeal?: Deal
+  input: DealUpsertInput
 ): Promise<Deal> {
-  const fallbackDeal = mapInputToDeal(input, id, existingDeal?.createdAt ?? todayIsoDate());
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return fallbackDeal;
-  }
+  const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("deals")
       .update({
-        client_id: input.clientId,
+        client_id: nullableUuid(input.clientId),
         title: input.title.trim(),
-        amount: Number(input.amount) || 0,
+        amount: numericValue(input.amount),
         status: input.status,
-        probability: Math.min(100, Math.max(0, Number(input.probability) || 0))
+        probability: clampPercent(input.probability)
       })
       .eq("id", id)
       .eq("user_id", DEMO_USER_ID)
@@ -132,24 +105,25 @@ export async function updateDeal(
       .single();
 
     if (error || !data) {
-      return fallbackDeal;
+      throwSupabaseError("deals", "update", error);
     }
 
     return mapRowToDeal(data);
-  } catch {
-    return fallbackDeal;
+  } catch (error) {
+    throwSupabaseError("deals", "update", error);
   }
 }
 
 export async function deleteDeal(id: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return;
-  }
+  const supabase = requireSupabaseClient();
 
   try {
-    await supabase.from("deals").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
-  } catch {
-    return;
+    const { error } = await supabase.from("deals").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
+
+    if (error) {
+      throwSupabaseError("deals", "delete", error);
+    }
+  } catch (error) {
+    throwSupabaseError("deals", "delete", error);
   }
 }

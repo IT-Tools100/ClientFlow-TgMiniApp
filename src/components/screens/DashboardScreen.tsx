@@ -84,7 +84,7 @@ export function DashboardScreen({
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard
-          detail="Current mock state"
+          detail="Live database rows"
           label="Total clients"
           tone="blue"
           value={String(clients.length)}
@@ -122,7 +122,7 @@ export function DashboardScreen({
       </div>
 
       <section>
-        <SectionHeader action="Mock state" eyebrow="Clients" title="Recent clients" />
+        <SectionHeader action="Live data" eyebrow="Clients" title="Recent clients" />
         <div className="space-y-3">
           {clients.slice(0, 3).map((client) => (
             <GlassCard className="p-4" key={client.id}>

@@ -155,8 +155,7 @@ export function AppShell() {
 
   async function handleUpdateClient(id: string, input: ClientUpsertInput) {
     try {
-      const existingClient = clients.find((client) => client.id === id);
-      const updated = await updateClient(id, input, existingClient);
+      const updated = await updateClient(id, input);
       setClients((current) => current.map((client) => (client.id === id ? updated : client)));
       const activity = await createActivity({
         clientId: updated.id,
@@ -207,8 +206,7 @@ export function AppShell() {
 
   async function handleUpdateTask(id: string, input: TaskUpsertInput) {
     try {
-      const existingTask = tasks.find((task) => task.id === id);
-      const updated = await updateTask(id, input, existingTask);
+      const updated = await updateTask(id, input);
       setTasks((current) => current.map((task) => (task.id === id ? updated : task)));
       const activity = await createActivity({
         clientId: updated.clientId,
@@ -259,8 +257,7 @@ export function AppShell() {
 
   async function handleUpdateDeal(id: string, input: DealUpsertInput) {
     try {
-      const existingDeal = deals.find((deal) => deal.id === id);
-      const updated = await updateDeal(id, input, existingDeal);
+      const updated = await updateDeal(id, input);
       setDeals((current) => current.map((deal) => (deal.id === id ? updated : deal)));
       const activity = await createActivity({
         clientId: updated.clientId,

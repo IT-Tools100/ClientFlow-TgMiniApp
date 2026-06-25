@@ -1,5 +1,5 @@
-import { clients as mockClients } from "@/data/mockData";
-import { DEMO_USER_ID, getSupabaseClient } from "@/lib/supabase";
+import { DEMO_USER_ID } from "@/lib/supabase";
+import { numericValue, requireSupabaseClient, throwSupabaseError } from "@/lib/services/shared";
 import type { Client, ClientStatus } from "@/types";
 import type { ClientRow } from "@/types/database";
 
@@ -21,14 +21,6 @@ const clientStatuses = new Set<ClientStatus>([
   "Lost"
 ]);
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function createId(prefix: string) {
-  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
-}
-
 function normalizeStatus(value: string | null | undefined): ClientStatus {
   return value && clientStatuses.has(value as ClientStatus) ? (value as ClientStatus) : "New";
 }
@@ -40,77 +32,36 @@ function mapRowToClient(row: ClientRow): Client {
     contact: row.contact ?? "",
     source: row.source ?? "",
     status: normalizeStatus(row.status),
-    value: Number(row.value ?? 0),
+    value: numericValue(row.value),
     notes: row.notes ?? "",
     createdAt: row.created_at
   };
 }
 
-function mapInputToClient(input: ClientUpsertInput, id = createId("client"), createdAt = todayIsoDate()) {
-  return {
-    id,
-    name: input.name.trim(),
-    contact: input.contact.trim(),
-    source: input.source.trim(),
-    status: input.status,
-    value: Number(input.value) || 0,
-    notes: input.notes.trim(),
-    createdAt
-  } satisfies Client;
-}
-
-async function fallback<T>(value: T) {
-  return value;
-}
-
 export async function getClients(): Promise<Client[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    console.log("[clients] fallback getClients");
-    return mockClients.map((client) => ({ ...client }));
-  }
+  const supabase = requireSupabaseClient();
 
   try {
-    console.log("[clients] select before", { user_id: DEMO_USER_ID });
     const { data, error } = await supabase
       .from("clients")
       .select("*")
       .eq("user_id", DEMO_USER_ID)
       .order("created_at", { ascending: false });
 
-    console.log("[clients] select after", { data, error });
-
     if (error || !data) {
-      console.error("[clients] select failed", error);
-      return mockClients.map((client) => ({ ...client }));
+      throwSupabaseError("clients", "select", error);
     }
 
     return data.map(mapRowToClient);
   } catch (error) {
-    console.error("[clients] select exception", error);
-    return mockClients.map((client) => ({ ...client }));
+    throwSupabaseError("clients", "select", error);
   }
 }
 
 export async function createClient(input: ClientUpsertInput): Promise<Client> {
-  const fallbackClient = mapInputToClient(input);
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    console.log("[clients] fallback createClient", fallbackClient);
-    return fallback(fallbackClient);
-  }
+  const supabase = requireSupabaseClient();
 
   try {
-    console.log("[clients] insert before", {
-      user_id: DEMO_USER_ID,
-      name: input.name.trim(),
-      contact: input.contact.trim(),
-      source: input.source.trim(),
-      status: input.status,
-      value: Number(input.value) || 0,
-      notes: input.notes.trim()
-    });
-
     const { data, error } = await supabase
       .from("clients")
       .insert({
@@ -119,50 +70,29 @@ export async function createClient(input: ClientUpsertInput): Promise<Client> {
         contact: input.contact.trim(),
         source: input.source.trim(),
         status: input.status,
-        value: Number(input.value) || 0,
+        value: numericValue(input.value),
         notes: input.notes.trim()
       })
       .select("*")
       .single();
 
-    console.log("[clients] insert after", { data, error });
-
     if (error || !data) {
-      console.error("[clients] insert failed", error);
-      return fallbackClient;
+      throwSupabaseError("clients", "insert", error);
     }
 
     return mapRowToClient(data);
   } catch (error) {
-    console.error("[clients] insert exception", error);
-    return fallbackClient;
+    throwSupabaseError("clients", "insert", error);
   }
 }
 
 export async function updateClient(
   id: string,
-  input: ClientUpsertInput,
-  existingClient?: Client
+  input: ClientUpsertInput
 ): Promise<Client> {
-  const fallbackClient = mapInputToClient(input, id, existingClient?.createdAt ?? todayIsoDate());
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    console.log("[clients] fallback updateClient", { id, fallbackClient });
-    return fallback(fallbackClient);
-  }
+  const supabase = requireSupabaseClient();
 
   try {
-    console.log("[clients] update before", {
-      id,
-      user_id: DEMO_USER_ID,
-      name: input.name.trim(),
-      contact: input.contact.trim(),
-      source: input.source.trim(),
-      status: input.status,
-      value: Number(input.value) || 0,
-      notes: input.notes.trim()
-    });
-
     const { data, error } = await supabase
       .from("clients")
       .update({
@@ -170,7 +100,7 @@ export async function updateClient(
         contact: input.contact.trim(),
         source: input.source.trim(),
         status: input.status,
-        value: Number(input.value) || 0,
+        value: numericValue(input.value),
         notes: input.notes.trim()
       })
       .eq("id", id)
@@ -178,37 +108,26 @@ export async function updateClient(
       .select("*")
       .single();
 
-    console.log("[clients] update after", { data, error });
-
     if (error || !data) {
-      console.error("[clients] update failed", error);
-      return fallbackClient;
+      throwSupabaseError("clients", "update", error);
     }
 
     return mapRowToClient(data);
   } catch (error) {
-    console.error("[clients] update exception", error);
-    return fallbackClient;
+    throwSupabaseError("clients", "update", error);
   }
 }
 
 export async function deleteClient(id: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    console.log("[clients] fallback deleteClient", { id });
-    return;
-  }
+  const supabase = requireSupabaseClient();
 
   try {
-    console.log("[clients] delete before", { id, user_id: DEMO_USER_ID });
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
-    console.log("[clients] delete after", { error });
 
     if (error) {
-      console.error("[clients] delete failed", error);
+      throwSupabaseError("clients", "delete", error);
     }
   } catch (error) {
-    console.error("[clients] delete exception", error);
-    return;
+    throwSupabaseError("clients", "delete", error);
   }
 }

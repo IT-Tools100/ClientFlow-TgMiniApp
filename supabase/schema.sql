@@ -56,6 +56,34 @@ create table if not exists public.activities (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists set_clients_updated_at on public.clients;
+create trigger set_clients_updated_at
+  before update on public.clients
+  for each row
+  execute function public.set_updated_at();
+
+drop trigger if exists set_tasks_updated_at on public.tasks;
+create trigger set_tasks_updated_at
+  before update on public.tasks
+  for each row
+  execute function public.set_updated_at();
+
+drop trigger if exists set_deals_updated_at on public.deals;
+create trigger set_deals_updated_at
+  before update on public.deals
+  for each row
+  execute function public.set_updated_at();
+
 create index if not exists profiles_telegram_id_idx on public.profiles (telegram_id);
 
 create index if not exists clients_user_id_idx on public.clients (user_id);

@@ -1,5 +1,5 @@
-import { activities as mockActivities } from "@/data/mockData";
-import { DEMO_USER_ID, getSupabaseClient } from "@/lib/supabase";
+import { DEMO_USER_ID } from "@/lib/supabase";
+import { nullableUuid, requireSupabaseClient, throwSupabaseError } from "@/lib/services/shared";
 import type { Activity, ActivityType } from "@/types";
 import type { ActivityRow } from "@/types/database";
 
@@ -10,10 +10,6 @@ export interface ActivityInput {
 }
 
 const activityTypes = new Set<ActivityType>(["client", "deal", "task", "payment"]);
-
-function createId(prefix: string) {
-  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
-}
 
 function formatRelativeTime(isoString: string) {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -57,10 +53,7 @@ function mapRowToActivity(row: ActivityRow): Activity {
 }
 
 export async function getActivities(): Promise<Activity[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return mockActivities.map((activity) => ({ ...activity }));
-  }
+  const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
@@ -70,33 +63,22 @@ export async function getActivities(): Promise<Activity[]> {
       .order("created_at", { ascending: false });
 
     if (error || !data) {
-      return mockActivities.map((activity) => ({ ...activity }));
+      throwSupabaseError("activities", "select", error);
     }
 
     return data.map(mapRowToActivity);
-  } catch {
-    return mockActivities.map((activity) => ({ ...activity }));
+  } catch (error) {
+    throwSupabaseError("activities", "select", error);
   }
 }
 
 export async function createActivity(input: ActivityInput): Promise<Activity> {
-  const fallbackActivity: Activity = {
-    id: createId("activity"),
-    type: input.type,
-    title: getTitle(input.type),
-    description: input.description,
-    time: "Just now"
-  };
-
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return fallbackActivity;
-  }
+  const supabase = requireSupabaseClient();
 
   try {
     const payload = {
       user_id: DEMO_USER_ID,
-      client_id: input.clientId ?? null,
+      client_id: nullableUuid(input.clientId),
       type: input.type,
       description: input.description
     };
@@ -108,11 +90,11 @@ export async function createActivity(input: ActivityInput): Promise<Activity> {
       .single();
 
     if (error || !data) {
-      return fallbackActivity;
+      throwSupabaseError("activities", "insert", error);
     }
 
     return mapRowToActivity(data);
-  } catch {
-    return fallbackActivity;
+  } catch (error) {
+    throwSupabaseError("activities", "insert", error);
   }
 }
