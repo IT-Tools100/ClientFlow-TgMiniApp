@@ -1,60 +1,5 @@
-create extension if not exists "pgcrypto";
-
-create table if not exists public.profiles (
-  id uuid primary key default gen_random_uuid(),
-  telegram_id text,
-  username text,
-  first_name text,
-  last_name text,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.clients (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  name text not null,
-  contact text,
-  source text,
-  status text not null default 'New',
-  value numeric not null default 0,
-  notes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.tasks (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  title text not null,
-  description text,
-  due_date date,
-  status text not null default 'Today',
-  priority text not null default 'Medium',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.deals (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  title text not null,
-  amount numeric not null default 0,
-  status text not null default 'New',
-  probability integer not null default 0 check (probability >= 0 and probability <= 100),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.activities (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  type text not null,
-  description text not null,
-  created_at timestamptz not null default now()
-);
+-- Stage 3 temporary RLS for the current DEMO_USER_ID architecture.
+-- Replace these demo policies when Telegram user/profile ownership is implemented.
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -83,23 +28,6 @@ create trigger set_deals_updated_at
   before update on public.deals
   for each row
   execute function public.set_updated_at();
-
-create index if not exists profiles_telegram_id_idx on public.profiles (telegram_id);
-
-create index if not exists clients_user_id_idx on public.clients (user_id);
-create index if not exists clients_status_idx on public.clients (status);
-
-create index if not exists tasks_user_id_idx on public.tasks (user_id);
-create index if not exists tasks_client_id_idx on public.tasks (client_id);
-create index if not exists tasks_status_idx on public.tasks (status);
-
-create index if not exists deals_user_id_idx on public.deals (user_id);
-create index if not exists deals_client_id_idx on public.deals (client_id);
-create index if not exists deals_status_idx on public.deals (status);
-
-create index if not exists activities_user_id_idx on public.activities (user_id);
-create index if not exists activities_client_id_idx on public.activities (client_id);
-create index if not exists activities_type_idx on public.activities (type);
 
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
