@@ -24,7 +24,10 @@ The script creates:
 - `deals`
 - `activities`
 
-It also enables Row Level Security and adds policies so users can access only rows where `auth.uid()` matches their profile id or row `user_id`.
+It also enables Row Level Security. The current local/dev policy set expects a
+Telegram/dev profile bootstrap flow and CRM rows scoped by `user_id` in the
+application service layer. Final production policies should be tightened after
+server-side Telegram `initData` verification is added.
 
 ## Environment variables
 
@@ -43,7 +46,6 @@ Do not commit `.env.local`.
 
 The next implementation step can add:
 
-- `src/lib/supabase.ts`
-- Supabase client initialization
-- mapping between frontend state types and database row types
-- CRUD replacement for clients, tasks, deals, and activities
+- server-side Telegram `initData` verification
+- final profile ownership RLS policies
+- replacement of temporary bootstrap policies

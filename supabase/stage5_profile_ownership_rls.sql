@@ -1,117 +1,6 @@
-create extension if not exists "pgcrypto";
-
-create table if not exists public.profiles (
-  id uuid primary key default gen_random_uuid(),
-  telegram_id text,
-  username text,
-  first_name text,
-  last_name text,
-  language_code text,
-  photo_url text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.clients (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  name text not null,
-  contact text,
-  source text,
-  status text not null default 'New',
-  value numeric not null default 0,
-  notes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.tasks (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  title text not null,
-  description text,
-  due_date date,
-  status text not null default 'Today',
-  priority text not null default 'Medium',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.deals (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  title text not null,
-  amount numeric not null default 0,
-  status text not null default 'New',
-  probability integer not null default 0 check (probability >= 0 and probability <= 100),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.activities (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  client_id uuid references public.clients(id) on delete set null,
-  type text not null,
-  description text not null,
-  created_at timestamptz not null default now()
-);
-
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists set_clients_updated_at on public.clients;
-create trigger set_clients_updated_at
-  before update on public.clients
-  for each row
-  execute function public.set_updated_at();
-
-drop trigger if exists set_tasks_updated_at on public.tasks;
-create trigger set_tasks_updated_at
-  before update on public.tasks
-  for each row
-  execute function public.set_updated_at();
-
-drop trigger if exists set_deals_updated_at on public.deals;
-create trigger set_deals_updated_at
-  before update on public.deals
-  for each row
-  execute function public.set_updated_at();
-
-drop trigger if exists set_profiles_updated_at on public.profiles;
-create trigger set_profiles_updated_at
-  before update on public.profiles
-  for each row
-  execute function public.set_updated_at();
-
-drop index if exists public.profiles_telegram_id_idx;
-create unique index if not exists profiles_telegram_id_unique_idx
-  on public.profiles (telegram_id)
-  where telegram_id is not null;
-
-create index if not exists clients_user_id_idx on public.clients (user_id);
-create index if not exists clients_status_idx on public.clients (status);
-
-create index if not exists tasks_user_id_idx on public.tasks (user_id);
-create index if not exists tasks_client_id_idx on public.tasks (client_id);
-create index if not exists tasks_status_idx on public.tasks (status);
-
-create index if not exists deals_user_id_idx on public.deals (user_id);
-create index if not exists deals_client_id_idx on public.deals (client_id);
-create index if not exists deals_status_idx on public.deals (status);
-
-create index if not exists activities_user_id_idx on public.activities (user_id);
-create index if not exists activities_client_id_idx on public.activities (client_id);
-create index if not exists activities_type_idx on public.activities (type);
+-- Stage 5 profile ownership RLS for the current Telegram/dev identity foundation.
+-- This removes CRM DEMO_USER_ID policies. It is a dev/stage policy set, not final
+-- production security, because Telegram initData is not server-verified yet.
 
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
@@ -119,10 +8,6 @@ alter table public.tasks enable row level security;
 alter table public.deals enable row level security;
 alter table public.activities enable row level security;
 
-drop policy if exists "Users can read own profile" on public.profiles;
-drop policy if exists "Users can insert own profile" on public.profiles;
-drop policy if exists "Users can update own profile" on public.profiles;
-drop policy if exists "Users can delete own profile" on public.profiles;
 drop policy if exists "Demo profile can be read" on public.profiles;
 drop policy if exists "Demo profile can be inserted" on public.profiles;
 drop policy if exists "Demo profile can be updated" on public.profiles;
@@ -130,10 +15,6 @@ drop policy if exists "Telegram profiles can be read during bootstrap" on public
 drop policy if exists "Telegram profiles can be inserted during bootstrap" on public.profiles;
 drop policy if exists "Telegram profiles can be updated during bootstrap" on public.profiles;
 
-drop policy if exists "Users can read own clients" on public.clients;
-drop policy if exists "Users can insert own clients" on public.clients;
-drop policy if exists "Users can update own clients" on public.clients;
-drop policy if exists "Users can delete own clients" on public.clients;
 drop policy if exists "Demo clients can be read" on public.clients;
 drop policy if exists "Demo clients can be inserted" on public.clients;
 drop policy if exists "Demo clients can be updated" on public.clients;
@@ -143,10 +24,6 @@ drop policy if exists "Profile-owned clients can be inserted" on public.clients;
 drop policy if exists "Profile-owned clients can be updated" on public.clients;
 drop policy if exists "Profile-owned clients can be deleted" on public.clients;
 
-drop policy if exists "Users can read own tasks" on public.tasks;
-drop policy if exists "Users can insert own tasks" on public.tasks;
-drop policy if exists "Users can update own tasks" on public.tasks;
-drop policy if exists "Users can delete own tasks" on public.tasks;
 drop policy if exists "Demo tasks can be read" on public.tasks;
 drop policy if exists "Demo tasks can be inserted" on public.tasks;
 drop policy if exists "Demo tasks can be updated" on public.tasks;
@@ -156,10 +33,6 @@ drop policy if exists "Profile-owned tasks can be inserted" on public.tasks;
 drop policy if exists "Profile-owned tasks can be updated" on public.tasks;
 drop policy if exists "Profile-owned tasks can be deleted" on public.tasks;
 
-drop policy if exists "Users can read own deals" on public.deals;
-drop policy if exists "Users can insert own deals" on public.deals;
-drop policy if exists "Users can update own deals" on public.deals;
-drop policy if exists "Users can delete own deals" on public.deals;
 drop policy if exists "Demo deals can be read" on public.deals;
 drop policy if exists "Demo deals can be inserted" on public.deals;
 drop policy if exists "Demo deals can be updated" on public.deals;
@@ -169,10 +42,6 @@ drop policy if exists "Profile-owned deals can be inserted" on public.deals;
 drop policy if exists "Profile-owned deals can be updated" on public.deals;
 drop policy if exists "Profile-owned deals can be deleted" on public.deals;
 
-drop policy if exists "Users can read own activities" on public.activities;
-drop policy if exists "Users can insert own activities" on public.activities;
-drop policy if exists "Users can update own activities" on public.activities;
-drop policy if exists "Users can delete own activities" on public.activities;
 drop policy if exists "Demo activities can be read" on public.activities;
 drop policy if exists "Demo activities can be inserted" on public.activities;
 drop policy if exists "Demo activities can be updated" on public.activities;

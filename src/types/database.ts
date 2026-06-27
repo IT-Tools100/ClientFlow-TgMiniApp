@@ -10,7 +10,10 @@ export type Database = {
           username: string | null;
           first_name: string | null;
           last_name: string | null;
+          language_code: string | null;
+          photo_url: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -18,7 +21,10 @@ export type Database = {
           username?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          language_code?: string | null;
+          photo_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -26,7 +32,10 @@ export type Database = {
           username?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          language_code?: string | null;
+          photo_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

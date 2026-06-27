@@ -1,5 +1,4 @@
-import { DEMO_USER_ID } from "@/lib/supabase";
-import { nullableUuid, requireSupabaseClient, throwSupabaseError } from "@/lib/services/shared";
+import { requireSupabaseClient, resolveProfileClientId, throwSupabaseError } from "@/lib/services/shared";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 import type { TaskRow } from "@/types/database";
 
@@ -40,14 +39,14 @@ function mapRowToTask(row: TaskRow): Task {
   };
 }
 
-export async function getTasks(): Promise<Task[]> {
+export async function getTasks(profileId: string): Promise<Task[]> {
   const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -60,15 +59,17 @@ export async function getTasks(): Promise<Task[]> {
   }
 }
 
-export async function createTask(input: TaskUpsertInput): Promise<Task> {
+export async function createTask(profileId: string, input: TaskUpsertInput): Promise<Task> {
   const supabase = requireSupabaseClient();
 
   try {
+    const clientId = await resolveProfileClientId(profileId, input.clientId);
+
     const { data, error } = await supabase
       .from("tasks")
       .insert({
-        user_id: DEMO_USER_ID,
-        client_id: nullableUuid(input.clientId),
+        user_id: profileId,
+        client_id: clientId,
         title: input.title.trim(),
         description: input.description.trim(),
         due_date: input.dueDate,
@@ -89,16 +90,19 @@ export async function createTask(input: TaskUpsertInput): Promise<Task> {
 }
 
 export async function updateTask(
+  profileId: string,
   id: string,
   input: TaskUpsertInput
 ): Promise<Task> {
   const supabase = requireSupabaseClient();
 
   try {
+    const clientId = await resolveProfileClientId(profileId, input.clientId);
+
     const { data, error } = await supabase
       .from("tasks")
       .update({
-        client_id: nullableUuid(input.clientId),
+        client_id: clientId,
         title: input.title.trim(),
         description: input.description.trim(),
         due_date: input.dueDate,
@@ -106,7 +110,7 @@ export async function updateTask(
         priority: input.priority
       })
       .eq("id", id)
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .select("*")
       .single();
 
@@ -120,11 +124,11 @@ export async function updateTask(
   }
 }
 
-export async function deleteTask(id: string): Promise<void> {
+export async function deleteTask(profileId: string, id: string): Promise<void> {
   const supabase = requireSupabaseClient();
 
   try {
-    const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
+    const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", profileId);
 
     if (error) {
       throwSupabaseError("tasks", "delete", error);

@@ -1,9 +1,8 @@
-import { DEMO_USER_ID } from "@/lib/supabase";
 import {
   clampPercent,
-  nullableUuid,
   numericValue,
   requireSupabaseClient,
+  resolveProfileClientId,
   throwSupabaseError
 } from "@/lib/services/shared";
 import type { Deal, DealStatus } from "@/types";
@@ -36,14 +35,14 @@ function mapRowToDeal(row: DealRow): Deal {
   };
 }
 
-export async function getDeals(): Promise<Deal[]> {
+export async function getDeals(profileId: string): Promise<Deal[]> {
   const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("deals")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -56,15 +55,17 @@ export async function getDeals(): Promise<Deal[]> {
   }
 }
 
-export async function createDeal(input: DealUpsertInput): Promise<Deal> {
+export async function createDeal(profileId: string, input: DealUpsertInput): Promise<Deal> {
   const supabase = requireSupabaseClient();
 
   try {
+    const clientId = await resolveProfileClientId(profileId, input.clientId);
+
     const { data, error } = await supabase
       .from("deals")
       .insert({
-        user_id: DEMO_USER_ID,
-        client_id: nullableUuid(input.clientId),
+        user_id: profileId,
+        client_id: clientId,
         title: input.title.trim(),
         amount: numericValue(input.amount),
         status: input.status,
@@ -84,23 +85,26 @@ export async function createDeal(input: DealUpsertInput): Promise<Deal> {
 }
 
 export async function updateDeal(
+  profileId: string,
   id: string,
   input: DealUpsertInput
 ): Promise<Deal> {
   const supabase = requireSupabaseClient();
 
   try {
+    const clientId = await resolveProfileClientId(profileId, input.clientId);
+
     const { data, error } = await supabase
       .from("deals")
       .update({
-        client_id: nullableUuid(input.clientId),
+        client_id: clientId,
         title: input.title.trim(),
         amount: numericValue(input.amount),
         status: input.status,
         probability: clampPercent(input.probability)
       })
       .eq("id", id)
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .select("*")
       .single();
 
@@ -114,11 +118,11 @@ export async function updateDeal(
   }
 }
 
-export async function deleteDeal(id: string): Promise<void> {
+export async function deleteDeal(profileId: string, id: string): Promise<void> {
   const supabase = requireSupabaseClient();
 
   try {
-    const { error } = await supabase.from("deals").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
+    const { error } = await supabase.from("deals").delete().eq("id", id).eq("user_id", profileId);
 
     if (error) {
       throwSupabaseError("deals", "delete", error);

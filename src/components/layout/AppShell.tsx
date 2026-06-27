@@ -8,6 +8,7 @@ import { DashboardScreen } from "@/components/screens/DashboardScreen";
 import { DealsScreen } from "@/components/screens/DealsScreen";
 import { ProfileScreen } from "@/components/screens/ProfileScreen";
 import { TasksScreen } from "@/components/screens/TasksScreen";
+import { getOrCreateProfile } from "@/lib/services/profiles";
 import { createActivity, getActivities } from "@/lib/services/activities";
 import {
   createClient,
@@ -24,7 +25,8 @@ import {
   type DealUpsertInput
 } from "@/lib/services/deals";
 import { createTask, deleteTask, getTasks, updateTask, type TaskUpsertInput } from "@/lib/services/tasks";
-import type { Activity, Client, Deal, NavTab, Task } from "@/types";
+import { getTelegramIdentity, type NormalizedTelegramUser } from "@/lib/telegram";
+import type { Activity, Client, Deal, NavTab, Profile, Task } from "@/types";
 
 const screenMap: Record<NavTab, string> = {
   dashboard: "Dashboard",
@@ -41,11 +43,14 @@ export function AppShell() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
+  const [telegramUser, setTelegramUser] = useState<NormalizedTelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [addClientRequest, setAddClientRequest] = useState(0);
   const title = useMemo(() => screenMap[activeTab], [activeTab]);
+  const canRenderContent = !isLoading && !loadError;
 
   useEffect(() => {
     let alive = true;
@@ -55,17 +60,21 @@ export function AppShell() {
       setLoadError(null);
 
       try {
+        const nextTelegramUser = getTelegramIdentity();
+        const nextProfile = await getOrCreateProfile(nextTelegramUser);
         const [nextClients, nextTasks, nextDeals, nextActivities] = await Promise.all([
-          getClients(),
-          getTasks(),
-          getDeals(),
-          getActivities()
+          getClients(nextProfile.id),
+          getTasks(nextProfile.id),
+          getDeals(nextProfile.id),
+          getActivities(nextProfile.id)
         ]);
 
         if (!alive) {
           return;
         }
 
+        setTelegramUser(nextTelegramUser);
+        setCurrentProfile(nextProfile);
         setClients(nextClients);
         setTasks(nextTasks);
         setDeals(nextDeals);
@@ -104,11 +113,20 @@ export function AppShell() {
     return clients.some((client) => client.id === clientId) ? clientId : null;
   }
 
+  function getCurrentProfileId() {
+    if (!currentProfile?.id) {
+      throw new Error("Current profile is not loaded");
+    }
+
+    return currentProfile.id;
+  }
+
   async function handleCreateClient(input: ClientUpsertInput) {
     try {
-      const created = await createClient(input);
+      const profileId = getCurrentProfileId();
+      const created = await createClient(profileId, input);
       setClients((current) => [created, ...current]);
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: created.id,
         description: `Created client ${created.name}`,
         type: "client"
@@ -122,9 +140,10 @@ export function AppShell() {
 
   async function handleUpdateClient(id: string, input: ClientUpsertInput) {
     try {
-      const updated = await updateClient(id, input);
+      const profileId = getCurrentProfileId();
+      const updated = await updateClient(profileId, id, input);
       setClients((current) => current.map((client) => (client.id === id ? updated : client)));
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: updated.id,
         description: `Updated client ${updated.name}`,
         type: "client"
@@ -138,8 +157,9 @@ export function AppShell() {
 
   async function handleDeleteClient(id: string) {
     try {
+      const profileId = getCurrentProfileId();
       const existingClient = clients.find((client) => client.id === id);
-      await deleteClient(id);
+      await deleteClient(profileId, id);
       setClients((current) => current.filter((client) => client.id !== id));
       setTasks((current) =>
         current.map((task) => (task.clientId === id ? { ...task, clientId: "" } : task))
@@ -148,7 +168,7 @@ export function AppShell() {
         current.map((deal) => (deal.clientId === id ? { ...deal, clientId: "" } : deal))
       );
       if (existingClient) {
-        const activity = await createActivity({
+        const activity = await createActivity(profileId, {
           clientId: null,
           description: `Deleted client ${existingClient.name}`,
           type: "client"
@@ -163,9 +183,10 @@ export function AppShell() {
 
   async function handleCreateTask(input: TaskUpsertInput) {
     try {
-      const created = await createTask(input);
+      const profileId = getCurrentProfileId();
+      const created = await createTask(profileId, input);
       setTasks((current) => [created, ...current]);
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: created.clientId,
         description: `Created task ${created.title}`,
         type: "task"
@@ -179,9 +200,10 @@ export function AppShell() {
 
   async function handleUpdateTask(id: string, input: TaskUpsertInput) {
     try {
-      const updated = await updateTask(id, input);
+      const profileId = getCurrentProfileId();
+      const updated = await updateTask(profileId, id, input);
       setTasks((current) => current.map((task) => (task.id === id ? updated : task)));
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: updated.clientId,
         description: `Updated task ${updated.title}`,
         type: "task"
@@ -195,11 +217,12 @@ export function AppShell() {
 
   async function handleDeleteTask(id: string) {
     try {
+      const profileId = getCurrentProfileId();
       const existingTask = tasks.find((task) => task.id === id);
-      await deleteTask(id);
+      await deleteTask(profileId, id);
       setTasks((current) => current.filter((task) => task.id !== id));
       if (existingTask) {
-        const activity = await createActivity({
+        const activity = await createActivity(profileId, {
           clientId: getExistingClientId(existingTask.clientId),
           description: `Deleted task ${existingTask.title}`,
           type: "task"
@@ -214,9 +237,10 @@ export function AppShell() {
 
   async function handleCreateDeal(input: DealUpsertInput) {
     try {
-      const created = await createDeal(input);
+      const profileId = getCurrentProfileId();
+      const created = await createDeal(profileId, input);
       setDeals((current) => [created, ...current]);
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: created.clientId,
         description: `Created deal ${created.title}`,
         type: "deal"
@@ -230,9 +254,10 @@ export function AppShell() {
 
   async function handleUpdateDeal(id: string, input: DealUpsertInput) {
     try {
-      const updated = await updateDeal(id, input);
+      const profileId = getCurrentProfileId();
+      const updated = await updateDeal(profileId, id, input);
       setDeals((current) => current.map((deal) => (deal.id === id ? updated : deal)));
-      const activity = await createActivity({
+      const activity = await createActivity(profileId, {
         clientId: updated.clientId,
         description: `Updated deal ${updated.title}`,
         type: "deal"
@@ -246,11 +271,12 @@ export function AppShell() {
 
   async function handleDeleteDeal(id: string) {
     try {
+      const profileId = getCurrentProfileId();
       const existingDeal = deals.find((deal) => deal.id === id);
-      await deleteDeal(id);
+      await deleteDeal(profileId, id);
       setDeals((current) => current.filter((deal) => deal.id !== id));
       if (existingDeal) {
-        const activity = await createActivity({
+        const activity = await createActivity(profileId, {
           clientId: getExistingClientId(existingDeal.clientId),
           description: `Deleted deal ${existingDeal.title}`,
           type: "deal"
@@ -281,11 +307,9 @@ export function AppShell() {
           </div>
         </header>
 
-        {isLoading ? (
-          <GlassLoadingState title={title} />
-        ) : loadError ? (
-          <GlassErrorState errorMessage={loadError} onRetry={handleRetryLoad} title={title} />
-        ) : activeTab === "dashboard" ? (
+        {isLoading ? <GlassLoadingState title={title} /> : null}
+        {loadError ? <GlassErrorState errorMessage={loadError} onRetry={handleRetryLoad} title={title} /> : null}
+        {canRenderContent && activeTab === "dashboard" ? (
           <DashboardScreen
             activities={activities}
             clients={clients}
@@ -295,7 +319,7 @@ export function AppShell() {
             tasks={tasks}
           />
         ) : null}
-        {activeTab === "clients" ? (
+        {canRenderContent && activeTab === "clients" ? (
           <ClientsScreen
             addClientRequest={addClientRequest}
             onCreateClient={handleCreateClient}
@@ -304,7 +328,7 @@ export function AppShell() {
             clients={clients}
           />
         ) : null}
-        {activeTab === "tasks" ? (
+        {canRenderContent && activeTab === "tasks" ? (
           <TasksScreen
             clients={clients}
             onCreateTask={handleCreateTask}
@@ -313,7 +337,7 @@ export function AppShell() {
             tasks={tasks}
           />
         ) : null}
-        {activeTab === "deals" ? (
+        {canRenderContent && activeTab === "deals" ? (
           <DealsScreen
             clients={clients}
             deals={deals}
@@ -322,10 +346,12 @@ export function AppShell() {
             onUpdateDeal={handleUpdateDeal}
           />
         ) : null}
-        {activeTab === "analytics" ? (
+        {canRenderContent && activeTab === "analytics" ? (
           <AnalyticsScreen clients={clients} deals={deals} tasks={tasks} />
         ) : null}
-        {activeTab === "profile" ? <ProfileScreen /> : null}
+        {canRenderContent && activeTab === "profile" ? (
+          <ProfileScreen currentProfile={currentProfile} telegramUser={telegramUser} />
+        ) : null}
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />

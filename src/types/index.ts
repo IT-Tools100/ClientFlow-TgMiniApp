@@ -66,3 +66,15 @@ export interface Activity {
   description: string;
   time: string;
 }
+
+export interface Profile {
+  id: string;
+  telegramId: string | null;
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  languageCode: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -1,4 +1,3 @@
-import { DEMO_USER_ID } from "@/lib/supabase";
 import { numericValue, requireSupabaseClient, throwSupabaseError } from "@/lib/services/shared";
 import type { Client, ClientStatus } from "@/types";
 import type { ClientRow } from "@/types/database";
@@ -38,14 +37,14 @@ function mapRowToClient(row: ClientRow): Client {
   };
 }
 
-export async function getClients(): Promise<Client[]> {
+export async function getClients(profileId: string): Promise<Client[]> {
   const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("clients")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -58,14 +57,14 @@ export async function getClients(): Promise<Client[]> {
   }
 }
 
-export async function createClient(input: ClientUpsertInput): Promise<Client> {
+export async function createClient(profileId: string, input: ClientUpsertInput): Promise<Client> {
   const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("clients")
       .insert({
-        user_id: DEMO_USER_ID,
+        user_id: profileId,
         name: input.name.trim(),
         contact: input.contact.trim(),
         source: input.source.trim(),
@@ -87,6 +86,7 @@ export async function createClient(input: ClientUpsertInput): Promise<Client> {
 }
 
 export async function updateClient(
+  profileId: string,
   id: string,
   input: ClientUpsertInput
 ): Promise<Client> {
@@ -104,7 +104,7 @@ export async function updateClient(
         notes: input.notes.trim()
       })
       .eq("id", id)
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .select("*")
       .single();
 
@@ -118,11 +118,11 @@ export async function updateClient(
   }
 }
 
-export async function deleteClient(id: string): Promise<void> {
+export async function deleteClient(profileId: string, id: string): Promise<void> {
   const supabase = requireSupabaseClient();
 
   try {
-    const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", DEMO_USER_ID);
+    const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", profileId);
 
     if (error) {
       throwSupabaseError("clients", "delete", error);

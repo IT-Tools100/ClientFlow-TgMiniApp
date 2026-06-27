@@ -9,6 +9,27 @@ export function nullableUuid(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+export async function resolveProfileClientId(profileId: string, clientId: string | null | undefined) {
+  const normalizedClientId = nullableUuid(clientId);
+  if (!normalizedClientId) {
+    return null;
+  }
+
+  const supabase = requireSupabaseClient();
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("id", normalizedClientId)
+    .eq("user_id", profileId)
+    .maybeSingle();
+
+  if (error) {
+    throwSupabaseError("clients", "validate ownership", error);
+  }
+
+  return data?.id ?? null;
+}
+
 export function numericValue(value: number | string | null | undefined) {
   const normalized = Number(value);
   return Number.isFinite(normalized) ? normalized : 0;

@@ -1,5 +1,4 @@
-import { DEMO_USER_ID } from "@/lib/supabase";
-import { nullableUuid, requireSupabaseClient, throwSupabaseError } from "@/lib/services/shared";
+import { requireSupabaseClient, resolveProfileClientId, throwSupabaseError } from "@/lib/services/shared";
 import type { Activity, ActivityType } from "@/types";
 import type { ActivityRow } from "@/types/database";
 
@@ -52,14 +51,14 @@ function mapRowToActivity(row: ActivityRow): Activity {
   };
 }
 
-export async function getActivities(): Promise<Activity[]> {
+export async function getActivities(profileId: string): Promise<Activity[]> {
   const supabase = requireSupabaseClient();
 
   try {
     const { data, error } = await supabase
       .from("activities")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -72,13 +71,14 @@ export async function getActivities(): Promise<Activity[]> {
   }
 }
 
-export async function createActivity(input: ActivityInput): Promise<Activity> {
+export async function createActivity(profileId: string, input: ActivityInput): Promise<Activity> {
   const supabase = requireSupabaseClient();
 
   try {
+    const clientId = await resolveProfileClientId(profileId, input.clientId);
     const payload = {
-      user_id: DEMO_USER_ID,
-      client_id: nullableUuid(input.clientId),
+      user_id: profileId,
+      client_id: clientId,
       type: input.type,
       description: input.description
     };
