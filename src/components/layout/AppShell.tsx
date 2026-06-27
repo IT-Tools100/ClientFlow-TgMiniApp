@@ -48,43 +48,18 @@ export function AppShell() {
   const title = useMemo(() => screenMap[activeTab], [activeTab]);
 
   useEffect(() => {
-    console.log("loading state", isLoading);
-  }, [isLoading]);
-
-  useEffect(() => {
     let alive = true;
 
     async function loadData() {
-      console.log("Dashboard start");
       setIsLoading(true);
       setLoadError(null);
 
       try {
-        const nextClientsPromise = (async () => {
-          console.log("Loading clients");
-          const data = await getClients();
-          console.log("Clients loaded");
-          return data;
-        })();
-
-        const nextTasksPromise = (async () => {
-          console.log("Loading tasks");
-          const data = await getTasks();
-          console.log("Tasks loaded");
-          return data;
-        })();
-
-        const nextDealsPromise = (async () => {
-          console.log("Loading deals");
-          const data = await getDeals();
-          console.log("Deals loaded");
-          return data;
-        })();
-
-        const [nextClients, nextTasks, nextDeals] = await Promise.all([
-          nextClientsPromise,
-          nextTasksPromise,
-          nextDealsPromise
+        const [nextClients, nextTasks, nextDeals, nextActivities] = await Promise.all([
+          getClients(),
+          getTasks(),
+          getDeals(),
+          getActivities()
         ]);
 
         if (!alive) {
@@ -94,28 +69,16 @@ export function AppShell() {
         setClients(nextClients);
         setTasks(nextTasks);
         setDeals(nextDeals);
-        console.log("Loading activities");
-        void getActivities()
-          .then((nextActivities) => {
-            console.log("Activities loaded");
-            if (alive) {
-              setActivities(nextActivities);
-            }
-          })
-          .catch((error) => {
-            console.error("Activities load error", error);
-          });
+        setActivities(nextActivities);
       } catch (error) {
         if (!alive) {
           return;
         }
 
         console.error("Dashboard load error", error);
-        setLoadError(error instanceof Error ? error.message : "Failed to load demo data");
+        setLoadError(error instanceof Error ? error.message : "Failed to load Supabase data");
       } finally {
         if (alive) {
-          console.log("Dashboard ready");
-          console.log("setLoading(false)");
           setIsLoading(false);
         }
       }
@@ -176,7 +139,7 @@ export function AppShell() {
       setClients((current) => current.filter((client) => client.id !== id));
       if (existingClient) {
         const activity = await createActivity({
-          clientId: existingClient.id,
+          clientId: null,
           description: `Deleted client ${existingClient.name}`,
           type: "client"
         });

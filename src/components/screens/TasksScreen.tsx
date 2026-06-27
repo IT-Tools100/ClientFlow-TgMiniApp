@@ -365,7 +365,7 @@ export function TasksScreen({
 
       {taskToDelete ? (
         <ConfirmDialog
-          body={`Delete "${taskToDelete.title}"? This removes it only from the current demo state.`}
+          body={`Delete "${taskToDelete.title}"? This removes it from Supabase.`}
           onCancel={() => setTaskToDelete(null)}
           onConfirm={() => void confirmDeleteTask(taskToDelete.id)}
           title="Delete task"

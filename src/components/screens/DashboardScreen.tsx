@@ -35,28 +35,7 @@ export function DashboardScreen({
   const revenuePipeline = activeDeals.reduce((total, deal) => total + deal.amount, 0);
   const paidRevenue = paidDeals.reduce((total, deal) => total + deal.amount, 0);
   const clientNameById = new Map(clients.map((client) => [client.id, client.name]));
-
-  const fallbackActivity = [
-    ...clients.slice(0, 1).map((client) => ({
-      id: `client-${client.id}`,
-      title: "Client added",
-      description: `${client.name} came from ${client.source}`,
-      time: client.createdAt
-    })),
-    ...tasks.slice(0, 1).map((task) => ({
-      id: `task-${task.id}`,
-      title: "Task in focus",
-      description: `${task.title} for ${clientNameById.get(task.clientId) ?? "Unknown client"}`,
-      time: task.dueDate
-    })),
-    ...deals.slice(0, 1).map((deal) => ({
-      id: `deal-${deal.id}`,
-      title: "Deal updated",
-      description: `${deal.title} · ${moneyFormatter.format(deal.amount)}`,
-      time: deal.updatedAt
-    }))
-  ];
-  const recentActivity = activities.length > 0 ? activities.slice(0, 5) : fallbackActivity;
+  const recentActivity = activities.slice(0, 5);
 
   return (
     <section className="space-y-6">
@@ -208,18 +187,24 @@ export function DashboardScreen({
         <SectionHeader eyebrow="Activity" title="Latest updates" />
         <GlassCard className="p-4">
           <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div className="flex gap-3" key={activity.id}>
-                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent-cyan shadow-[0_0_18px_rgba(34,211,238,0.72)]" />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-white">{activity.title}</h3>
-                    <span className="text-[11px] text-slate-500">{activity.time}</span>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <div className="flex gap-3" key={activity.id}>
+                  <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent-cyan shadow-[0_0_18px_rgba(34,211,238,0.72)]" />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-white">{activity.title}</h3>
+                      <span className="text-[11px] text-slate-500">{activity.time}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-5 text-app-muted">
+                      {activity.description}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm leading-5 text-app-muted">{activity.description}</p>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-app-muted">No activity yet.</p>
+            )}
           </div>
         </GlassCard>
       </section>

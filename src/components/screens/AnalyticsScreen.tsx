@@ -39,9 +39,9 @@ export function AnalyticsScreen({ clients, deals, tasks }: AnalyticsScreenProps)
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">
               {conversionRate}%
             </p>
-            <p className="mt-1 text-sm text-slate-300">Client conversion rate in demo data</p>
+            <p className="mt-1 text-sm text-slate-300">Client conversion rate from Supabase</p>
           </div>
-          <Badge tone="cyan">Demo analytics</Badge>
+          <Badge tone="cyan">Live analytics</Badge>
         </div>
         <ProgressBar value={conversionRate} />
       </GlassCard>

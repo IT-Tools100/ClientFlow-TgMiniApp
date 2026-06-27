@@ -370,7 +370,7 @@ export function DealsScreen({
 
       {dealToDelete ? (
         <ConfirmDialog
-          body={`Delete "${dealToDelete.title}"? This removes it only from the current demo state.`}
+          body={`Delete "${dealToDelete.title}"? This removes it from Supabase.`}
           onCancel={() => setDealToDelete(null)}
           onConfirm={() => void confirmDeleteDeal(dealToDelete.id)}
           title="Delete deal"

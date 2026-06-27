@@ -432,7 +432,7 @@ export function ClientsScreen({
 
       {clientToDelete ? (
         <ConfirmDialog
-          body={`Delete ${clientToDelete.name}? This removes it only from the current demo state.`}
+          body={`Delete ${clientToDelete.name}? This removes it from Supabase.`}
           onCancel={() => setClientToDelete(null)}
           onConfirm={() => void confirmDeleteClient(clientToDelete.id)}
           title="Delete client"

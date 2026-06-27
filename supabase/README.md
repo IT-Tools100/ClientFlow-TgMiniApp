@@ -45,7 +45,5 @@ The next implementation step can add:
 
 - `src/lib/supabase.ts`
 - Supabase client initialization
-- mapping between current mock state types and database row types
+- mapping between frontend state types and database row types
 - CRUD replacement for clients, tasks, deals, and activities
-
-For now, the UI still uses local mock state. This schema is only preparation.

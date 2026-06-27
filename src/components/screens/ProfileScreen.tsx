@@ -2,8 +2,8 @@ import { Badge } from "@/components/ui/Badge";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
-const stack = ["Next.js", "TypeScript", "Tailwind CSS", "Mock state"];
-const settings = ["Dark liquid glass theme", "USD currency placeholder", "Local demo data"];
+const stack = ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"];
+const settings = ["Dark liquid glass theme", "USD currency placeholder", "Supabase data"];
 
 export function ProfileScreen() {
   return (
@@ -15,10 +15,10 @@ export function ProfileScreen() {
             DU
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-app-muted">Demo user</p>
+            <p className="text-sm text-app-muted">Workspace user</p>
             <h2 className="truncate text-2xl font-bold text-white">ClientFlow Owner</h2>
             <div className="mt-2">
-              <Badge tone="cyan">Telegram Mini App mode: Demo</Badge>
+              <Badge tone="cyan">Telegram Mini App mode</Badge>
             </div>
           </div>
         </div>
@@ -32,8 +32,8 @@ export function ProfileScreen() {
             live Supabase database state for clients, tasks, deals, and activities.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <InfoTile label="Version" value="0.4 demo" />
-            <InfoTile label="Data mode" value="Mock state" />
+            <InfoTile label="Version" value="0.4" />
+            <InfoTile label="Data mode" value="Supabase" />
           </div>
         </GlassCard>
       </section>
