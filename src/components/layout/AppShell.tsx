@@ -100,6 +100,10 @@ export function AppShell() {
     setReloadKey((value) => value + 1);
   }
 
+  function getExistingClientId(clientId: string) {
+    return clients.some((client) => client.id === clientId) ? clientId : null;
+  }
+
   async function handleCreateClient(input: ClientUpsertInput) {
     try {
       const created = await createClient(input);
@@ -137,6 +141,12 @@ export function AppShell() {
       const existingClient = clients.find((client) => client.id === id);
       await deleteClient(id);
       setClients((current) => current.filter((client) => client.id !== id));
+      setTasks((current) =>
+        current.map((task) => (task.clientId === id ? { ...task, clientId: "" } : task))
+      );
+      setDeals((current) =>
+        current.map((deal) => (deal.clientId === id ? { ...deal, clientId: "" } : deal))
+      );
       if (existingClient) {
         const activity = await createActivity({
           clientId: null,
@@ -190,7 +200,7 @@ export function AppShell() {
       setTasks((current) => current.filter((task) => task.id !== id));
       if (existingTask) {
         const activity = await createActivity({
-          clientId: existingTask.clientId,
+          clientId: getExistingClientId(existingTask.clientId),
           description: `Deleted task ${existingTask.title}`,
           type: "task"
         });
@@ -241,7 +251,7 @@ export function AppShell() {
       setDeals((current) => current.filter((deal) => deal.id !== id));
       if (existingDeal) {
         const activity = await createActivity({
-          clientId: existingDeal.clientId,
+          clientId: getExistingClientId(existingDeal.clientId),
           description: `Deleted deal ${existingDeal.title}`,
           type: "deal"
         });
