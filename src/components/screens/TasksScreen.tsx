@@ -10,10 +10,14 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { TaskUpsertInput } from "@/lib/services/tasks";
 
-const TASK_STATUSES: TaskStatus[] = ["Today", "Upcoming", "Done", "Overdue"];
 const TASK_PRIORITIES: TaskPriority[] = ["Low", "Medium", "High"];
+const COMPLETION_STATES: TaskCompletionState[] = ["Active", "Done"];
+const DUE_STATES: TaskDueState[] = ["Overdue", "Today", "Upcoming"];
 
-type TaskViewFilter = "All" | "Active" | "Completed" | "Due Today" | "Overdue";
+type TaskCompletionState = "Active" | "Done";
+type TaskDueState = "Overdue" | "Today" | "Upcoming";
+type CompletionFilter = "All" | TaskCompletionState;
+type DueFilter = "All due" | TaskDueState;
 type PriorityFilter = "All" | TaskPriority;
 type ClientFilter = "All" | string;
 
@@ -22,7 +26,8 @@ interface TaskFormState {
   title: string;
   description: string;
   dueDate: string;
-  status: TaskStatus;
+  completion: TaskCompletionState;
+  dueState: TaskDueState;
   priority: TaskPriority;
 }
 
@@ -37,13 +42,23 @@ interface TasksScreenProps {
 const inputClass =
   "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
 
-function getLocalTodayKey() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
+function localDateKeyFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getLocalTodayKey() {
+  return localDateKeyFromDate(new Date());
+}
+
+function getOffsetLocalDateKey(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+
+  return localDateKeyFromDate(date);
 }
 
 function normalizeDateKey(value: string | null | undefined) {
@@ -58,67 +73,7 @@ function normalizeDateKey(value: string | null | undefined) {
   return match?.[1] ?? "";
 }
 
-function isTaskCompleted(task: Task) {
-  return task.status === "Done";
-}
-
-function isTaskDueToday(task: Task) {
-  const dueDateKey = normalizeDateKey(task.dueDate);
-
-  return !isTaskCompleted(task) && dueDateKey !== "" && dueDateKey === getLocalTodayKey();
-}
-
-function isTaskOverdue(task: Task) {
-  const dueDateKey = normalizeDateKey(task.dueDate);
-
-  return !isTaskCompleted(task) && dueDateKey !== "" && dueDateKey < getLocalTodayKey();
-}
-
-function getTaskComputedState(task: Task): "Completed" | "Due Today" | "Overdue" | "Active" {
-  if (isTaskCompleted(task)) {
-    return "Completed";
-  }
-
-  if (isTaskOverdue(task)) {
-    return "Overdue";
-  }
-
-  if (isTaskDueToday(task)) {
-    return "Due Today";
-  }
-
-  return "Active";
-}
-
-function getTaskBadge(task: Task, computedState: ReturnType<typeof getTaskComputedState>) {
-  if (computedState === "Completed") {
-    return {
-      label: "Done",
-      tone: getStatusTone("Done")
-    };
-  }
-
-  if (computedState === "Overdue") {
-    return {
-      label: "Overdue",
-      tone: getStatusTone("Overdue")
-    };
-  }
-
-  if (computedState === "Due Today") {
-    return {
-      label: "Today",
-      tone: getStatusTone("Today")
-    };
-  }
-
-  return {
-    label: task.status === "Upcoming" ? "Upcoming" : "Active",
-    tone: task.status === "Upcoming" ? getStatusTone("Upcoming") : getStatusTone("Today")
-  };
-}
-
-function getActiveStatusForDueDate(dueDate: string): TaskStatus {
+function getDueStateFromDateKey(dueDate: string): TaskDueState {
   const dueDateKey = normalizeDateKey(dueDate);
   const todayKey = getLocalTodayKey();
 
@@ -133,13 +88,115 @@ function getActiveStatusForDueDate(dueDate: string): TaskStatus {
   return dueDateKey === todayKey ? "Today" : "Upcoming";
 }
 
+function getTaskCompletionState(task: Task): TaskCompletionState {
+  return task.status === "Done" ? "Done" : "Active";
+}
+
+function getTaskDueState(task: Task): TaskDueState {
+  return getDueStateFromDateKey(task.dueDate);
+}
+
+function isTaskDone(task: Task) {
+  return getTaskCompletionState(task) === "Done";
+}
+
+function isTaskActive(task: Task) {
+  return getTaskCompletionState(task) === "Active";
+}
+
+function isTaskOverdue(task: Task) {
+  return getTaskDueState(task) === "Overdue";
+}
+
+function isTaskToday(task: Task) {
+  return getTaskDueState(task) === "Today";
+}
+
+function isTaskUpcoming(task: Task) {
+  return getTaskDueState(task) === "Upcoming";
+}
+
+function getStatusFromCompletionAndDueState(
+  completion: TaskCompletionState,
+  dueState: TaskDueState
+): TaskStatus {
+  if (completion === "Done") {
+    return "Done";
+  }
+
+  return dueState;
+}
+
+function getDueDateFromDueState(dueState: TaskDueState) {
+  if (dueState === "Overdue") {
+    return getOffsetLocalDateKey(-1);
+  }
+
+  if (dueState === "Today") {
+    return getLocalTodayKey();
+  }
+
+  return getOffsetLocalDateKey(1);
+}
+
+function getTaskCompletionBadge(completion: TaskCompletionState) {
+  if (completion === "Done") {
+    return {
+      label: "Done",
+      tone: getStatusTone("Done")
+    };
+  }
+
+  return {
+    label: "Active",
+    tone: getStatusTone("Today")
+  };
+}
+
+function getTaskDueBadge(dueState: TaskDueState) {
+  if (dueState === "Overdue") {
+    return {
+      label: "Overdue",
+      tone: getStatusTone("Overdue")
+    };
+  }
+
+  if (dueState === "Today") {
+    return {
+      label: "Today",
+      tone: getStatusTone("Today")
+    };
+  }
+
+  return {
+    label: "Upcoming",
+    tone: getStatusTone("Upcoming")
+  };
+}
+
+function getSyncedDueDateForDueState(currentDueDate: string, dueState: TaskDueState) {
+  const currentKey = normalizeDateKey(currentDueDate);
+  const todayKey = getLocalTodayKey();
+
+  if (dueState === "Overdue") {
+    return currentKey && currentKey < todayKey ? currentKey : getDueDateFromDueState(dueState);
+  }
+
+  if (dueState === "Today") {
+    return getDueDateFromDueState(dueState);
+  }
+
+  return currentKey && currentKey > todayKey ? currentKey : getDueDateFromDueState(dueState);
+}
+
 function createEmptyForm(clientId: string): TaskFormState {
   return {
     clientId,
     title: "",
     description: "",
     dueDate: getLocalTodayKey(),
-    status: "Today",
+    completion: "Active",
+    dueState: "Today",
     priority: "Medium"
   };
 }
@@ -150,7 +207,8 @@ function taskToForm(task: Task): TaskFormState {
     title: task.title,
     description: task.description,
     dueDate: task.dueDate,
-    status: task.status,
+    completion: getTaskCompletionState(task),
+    dueState: getTaskDueState(task),
     priority: task.priority
   };
 }
@@ -163,7 +221,8 @@ export function TasksScreen({
   onUpdateTask
 }: TasksScreenProps) {
   const defaultClientId = clients[0]?.id ?? "";
-  const [taskViewFilter, setTaskViewFilter] = useState<TaskViewFilter>("All");
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>("All");
+  const [dueFilter, setDueFilter] = useState<DueFilter>("All due");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
   const [clientFilter, setClientFilter] = useState<ClientFilter>("All");
   const [query, setQuery] = useState("");
@@ -188,36 +247,37 @@ export function TasksScreen({
           task.title,
           task.description,
           clientName,
-          task.status,
+          getTaskCompletionState(task),
+          getTaskDueState(task),
           task.priority
         ]
           .join(" ")
           .toLowerCase();
 
         const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
-        const computedState = getTaskComputedState(task);
-        const matchesTaskView =
-          taskViewFilter === "All" ||
-          (taskViewFilter === "Active" && computedState !== "Completed") ||
-          (taskViewFilter === "Completed" && computedState === "Completed") ||
-          (taskViewFilter === "Due Today" && computedState === "Due Today") ||
-          (taskViewFilter === "Overdue" && computedState === "Overdue");
+        const completionState = getTaskCompletionState(task);
+        const dueState = getTaskDueState(task);
+        const matchesCompletion =
+          completionFilter === "All" || completionState === completionFilter;
+        const matchesDue =
+          dueFilter === "All due" || (completionState === "Active" && dueState === dueFilter);
         const matchesPriority = priorityFilter === "All" || task.priority === priorityFilter;
         const matchesClient = clientFilter === "All" || task.clientId === clientFilter;
 
-        return matchesQuery && matchesTaskView && matchesPriority && matchesClient;
+        return matchesQuery && matchesCompletion && matchesDue && matchesPriority && matchesClient;
       });
     },
-    [clientFilter, clientNameById, priorityFilter, query, taskViewFilter, tasks]
+    [clientFilter, clientNameById, completionFilter, dueFilter, priorityFilter, query, tasks]
   );
 
   const summary = useMemo(
     () => ({
       total: tasks.length,
-      active: tasks.filter((task) => getTaskComputedState(task) !== "Completed").length,
-      completed: tasks.filter((task) => getTaskComputedState(task) === "Completed").length,
-      dueToday: tasks.filter((task) => getTaskComputedState(task) === "Due Today").length,
-      overdue: tasks.filter((task) => getTaskComputedState(task) === "Overdue").length
+      active: tasks.filter(isTaskActive).length,
+      done: tasks.filter(isTaskDone).length,
+      overdue: tasks.filter((task) => isTaskActive(task) && isTaskOverdue(task)).length,
+      today: tasks.filter((task) => isTaskActive(task) && isTaskToday(task)).length,
+      upcoming: tasks.filter((task) => isTaskActive(task) && isTaskUpcoming(task)).length
     }),
     [tasks]
   );
@@ -240,16 +300,36 @@ export function TasksScreen({
     setForm(createEmptyForm(defaultClientId));
   }
 
+  function updateFormDueDate(dueDate: string) {
+    const normalizedDueDate = normalizeDateKey(dueDate);
+
+    setForm({
+      ...form,
+      dueDate: normalizedDueDate,
+      dueState: getDueStateFromDateKey(normalizedDueDate)
+    });
+  }
+
+  function updateFormDueState(dueState: TaskDueState) {
+    setForm({
+      ...form,
+      dueDate: getSyncedDueDateForDueState(form.dueDate, dueState),
+      dueState
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setIsSubmitting(true);
 
     try {
+      const input = formToTaskInput(form);
+
       if (formMode === "edit" && editingTaskId) {
-        await onUpdateTask(editingTaskId, form);
+        await onUpdateTask(editingTaskId, input);
       } else {
-        await onCreateTask(form);
+        await onCreateTask(input);
       }
       closeForm();
     } finally {
@@ -275,14 +355,15 @@ export function TasksScreen({
     setIsSubmitting(true);
 
     try {
-      const isCompleted = isTaskCompleted(task);
+      const completion = isTaskDone(task) ? "Active" : "Done";
+      const dueState = getTaskDueState(task);
 
       await onUpdateTask(task.id, {
         clientId: task.clientId,
         title: task.title,
         description: task.description,
         dueDate: task.dueDate,
-        status: isCompleted ? getActiveStatusForDueDate(task.dueDate) : "Done",
+        status: getStatusFromCompletionAndDueState(completion, dueState),
         priority: task.priority
       });
     } finally {
@@ -297,7 +378,7 @@ export function TasksScreen({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-app-muted">Task control</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-white">{summary.dueToday}</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-white">{summary.today}</p>
             <p className="mt-1 text-sm text-slate-300">
               Due today · {summary.overdue} overdue
             </p>
@@ -309,9 +390,10 @@ export function TasksScreen({
       <div className="grid grid-cols-2 gap-3">
         <TaskMetric label="Total tasks" value={summary.total} />
         <TaskMetric label="Active tasks" value={summary.active} />
-        <TaskMetric label="Completed" value={summary.completed} />
-        <TaskMetric label="Due today" value={summary.dueToday} tone="cyan" />
-        <TaskMetric className="col-span-2" label="Overdue" value={summary.overdue} tone="red" />
+        <TaskMetric label="Done" value={summary.done} />
+        <TaskMetric label="Overdue" value={summary.overdue} tone="red" />
+        <TaskMetric label="Today" value={summary.today} tone="cyan" />
+        <TaskMetric className="col-span-2" label="Upcoming" value={summary.upcoming} />
       </div>
 
       <GlassCard className="p-4">
@@ -324,9 +406,14 @@ export function TasksScreen({
             value={query}
           />
           <FilterRow
-            activeValue={taskViewFilter}
-            items={["All", "Active", "Completed", "Due Today", "Overdue"]}
-            onChange={(value) => setTaskViewFilter(value as TaskViewFilter)}
+            activeValue={completionFilter}
+            items={["All", ...COMPLETION_STATES]}
+            onChange={(value) => setCompletionFilter(value as CompletionFilter)}
+          />
+          <FilterRow
+            activeValue={dueFilter}
+            items={["All due", ...DUE_STATES]}
+            onChange={(value) => setDueFilter(value as DueFilter)}
           />
           <select
             className={inputClass}
@@ -353,69 +440,72 @@ export function TasksScreen({
         <div className="space-y-3">
           {filteredTasks.length > 0 ? (
             filteredTasks.map((task) => {
-              const computedState = getTaskComputedState(task);
-              const isCompleted = computedState === "Completed";
-              const isOverdue = computedState === "Overdue";
-              const taskBadge = getTaskBadge(task, computedState);
+              const completionState = getTaskCompletionState(task);
+              const dueState = getTaskDueState(task);
+              const isCompleted = completionState === "Done";
+              const isOverdue = completionState === "Active" && dueState === "Overdue";
+              const completionBadge = getTaskCompletionBadge(completionState);
+              const dueBadge = getTaskDueBadge(dueState);
               const clientName = clientNameById.get(task.clientId) ?? "Unknown client";
 
               return (
-              <GlassCard
-                className={`p-4 ${isOverdue ? "border-accent-red/40 bg-accent-red/[0.10]" : ""} ${
-                  isCompleted ? "opacity-75" : ""
-                }`}
-                data-testid="task-card"
-                data-title={task.title}
-                key={task.id}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3
-                      className={`truncate font-semibold text-white ${
-                        isCompleted ? "line-through decoration-white/50" : ""
-                      }`}
-                    >
-                      {task.title}
-                    </h3>
-                    <p className="mt-1 text-sm text-app-muted">
-                      {clientName}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-400">{task.description}</p>
+                <GlassCard
+                  className={`p-4 ${
+                    isOverdue ? "border-accent-red/40 bg-accent-red/[0.10]" : ""
+                  } ${isCompleted ? "opacity-75" : ""}`}
+                  data-testid="task-card"
+                  data-title={task.title}
+                  key={task.id}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3
+                        className={`truncate font-semibold text-white ${
+                          isCompleted ? "line-through decoration-white/50" : ""
+                        }`}
+                      >
+                        {task.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-app-muted">{clientName}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-400">{task.description}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <Badge tone={completionBadge.tone}>{completionBadge.label}</Badge>
+                      <Badge tone={dueBadge.tone}>{dueBadge.label}</Badge>
+                    </div>
                   </div>
-                  <Badge tone={taskBadge.tone}>{taskBadge.label}</Badge>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <InfoPill label="Due" value={task.dueDate} />
-                  <InfoPill label="Priority" value={task.priority} />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Button
-                    disabled={isSubmitting}
-                    onClick={() => void toggleComplete(task)}
-                    variant="secondary"
-                  >
-                    {isCompleted ? "Reopen" : "Complete"}
-                  </Button>
-                  <Button onClick={() => openEditForm(task)} variant="ghost">
-                    Edit
-                  </Button>
-                  <Button
-                    className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                    onClick={() => setTaskToDelete(task)}
-                    variant="ghost"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </GlassCard>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <InfoPill label="Due" value={task.dueDate || "No date"} />
+                    <InfoPill label="Priority" value={task.priority} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <Button
+                      disabled={isSubmitting}
+                      onClick={() => void toggleComplete(task)}
+                      variant="secondary"
+                    >
+                      {isCompleted ? "Reopen" : "Complete"}
+                    </Button>
+                    <Button onClick={() => openEditForm(task)} variant="ghost">
+                      Edit
+                    </Button>
+                    <Button
+                      className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
+                      onClick={() => setTaskToDelete(task)}
+                      variant="ghost"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </GlassCard>
               );
             })
           ) : (
             <EmptyState
               actionLabel="Add Task"
-              description={getEmptyStateDescription(tasks.length, taskViewFilter)}
+              description={getEmptyStateDescription(tasks.length, completionFilter, dueFilter)}
               onAction={openAddForm}
-              title={getEmptyStateTitle(tasks.length, taskViewFilter)}
+              title={getEmptyStateTitle(tasks.length, completionFilter, dueFilter)}
             />
           )}
         </div>
@@ -478,44 +568,60 @@ export function TasksScreen({
               <Field label="Due date">
                 <input
                   className={inputClass}
-                  onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
+                  onChange={(event) => updateFormDueDate(event.target.value)}
                   required
                   type="date"
                   value={form.dueDate}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Status">
+                <Field label="Completion">
                   <select
                     className={inputClass}
                     onChange={(event) =>
-                      setForm({ ...form, status: event.target.value as TaskStatus })
+                      setForm({
+                        ...form,
+                        completion: event.target.value as TaskCompletionState
+                      })
                     }
-                    value={form.status}
+                    value={form.completion}
                   >
-                    {TASK_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
+                    {COMPLETION_STATES.map((completion) => (
+                      <option key={completion} value={completion}>
+                        {completion}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Priority">
+                <Field label="Due status">
                   <select
                     className={inputClass}
-                    onChange={(event) =>
-                      setForm({ ...form, priority: event.target.value as TaskPriority })
-                    }
-                    value={form.priority}
+                    onChange={(event) => updateFormDueState(event.target.value as TaskDueState)}
+                    value={form.dueState}
                   >
-                    {TASK_PRIORITIES.map((priority) => (
-                      <option key={priority} value={priority}>
-                        {priority}
+                    {DUE_STATES.map((dueState) => (
+                      <option key={dueState} value={dueState}>
+                        {dueState}
                       </option>
                     ))}
                   </select>
                 </Field>
               </div>
+              <Field label="Priority">
+                <select
+                  className={inputClass}
+                  onChange={(event) =>
+                    setForm({ ...form, priority: event.target.value as TaskPriority })
+                  }
+                  value={form.priority}
+                >
+                  {TASK_PRIORITIES.map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button disabled={isSubmitting} onClick={closeForm} variant="ghost">
                   Cancel
@@ -617,34 +723,77 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getEmptyStateTitle(totalTasks: number, filter: TaskViewFilter) {
+function formToTaskInput(form: TaskFormState): TaskUpsertInput {
+  return {
+    clientId: form.clientId,
+    title: form.title,
+    description: form.description,
+    dueDate: normalizeDateKey(form.dueDate),
+    status: getStatusFromCompletionAndDueState(form.completion, form.dueState),
+    priority: form.priority
+  };
+}
+
+function getEmptyStateTitle(
+  totalTasks: number,
+  completionFilter: CompletionFilter,
+  dueFilter: DueFilter
+) {
   if (totalTasks === 0) {
     return "No tasks yet";
   }
 
-  if (filter === "Overdue") {
+  if (completionFilter === "Active" && dueFilter === "All due") {
+    return "No active tasks";
+  }
+
+  if (completionFilter === "Done") {
+    return "No done tasks";
+  }
+
+  if (dueFilter === "Overdue") {
     return "No overdue tasks";
   }
 
-  if (filter === "Due Today") {
-    return "No tasks due today";
+  if (dueFilter === "Today") {
+    return "No today tasks";
+  }
+
+  if (dueFilter === "Upcoming") {
+    return "No upcoming tasks";
   }
 
   return "No task results";
 }
 
-function getEmptyStateDescription(totalTasks: number, filter: TaskViewFilter) {
+function getEmptyStateDescription(
+  totalTasks: number,
+  completionFilter: CompletionFilter,
+  dueFilter: DueFilter
+) {
   if (totalTasks === 0) {
     return "Create the first follow-up, deadline, or delivery task for a client.";
   }
 
-  if (filter === "Overdue") {
-    return "Nothing is past due under the current filters.";
+  if (completionFilter === "Active" && dueFilter === "All due") {
+    return "There are no active tasks under the current search, client, or priority filter.";
   }
 
-  if (filter === "Due Today") {
+  if (completionFilter === "Done") {
+    return "There are no completed tasks under the current filters.";
+  }
+
+  if (dueFilter === "Overdue") {
+    return "There are no active overdue tasks under the current filters.";
+  }
+
+  if (dueFilter === "Today") {
     return "There are no active tasks due today under the current filters.";
   }
 
-  return "No tasks match the current search, client, priority, or task filter.";
+  if (dueFilter === "Upcoming") {
+    return "There are no active upcoming tasks under the current filters.";
+  }
+
+  return "No tasks match the current search, completion, due status, client, or priority filter.";
 }
