@@ -121,6 +121,10 @@ interface ClientsScreenProps {
   onCreateDeal: (input: DealUpsertInput) => Promise<void>;
   onCreateTask: (input: TaskUpsertInput) => Promise<void>;
   onDeleteClient: (id: string) => Promise<void>;
+  openClientRequest?: {
+    clientId: string;
+    requestId: number;
+  } | null;
   onUpdateClient: (id: string, input: ClientUpsertInput) => Promise<void>;
 }
 
@@ -132,6 +136,7 @@ export function ClientsScreen({
   onCreateDeal,
   onCreateTask,
   onDeleteClient,
+  openClientRequest,
   onUpdateClient
 }: ClientsScreenProps) {
   const [query, setQuery] = useState("");
@@ -311,6 +316,20 @@ export function ClientsScreen({
       setFormMode("add");
     }
   }, [addClientRequest]);
+
+  useEffect(() => {
+    if (!openClientRequest) {
+      return;
+    }
+
+    const requestedClient = clients.find((client) => client.id === openClientRequest.clientId);
+
+    if (requestedClient) {
+      openClientWorkspace(requestedClient);
+    }
+    // openClientWorkspace intentionally resets local workspace state for each external request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, openClientRequest?.clientId, openClientRequest?.requestId]);
 
   useEffect(() => {
     let alive = true;

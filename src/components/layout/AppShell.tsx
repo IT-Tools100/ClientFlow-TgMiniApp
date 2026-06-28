@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { UniversalSearchModal } from "@/components/layout/UniversalSearchModal";
 import { AnalyticsScreen } from "@/components/screens/AnalyticsScreen";
 import { ClientsScreen } from "@/components/screens/ClientsScreen";
 import { DashboardScreen } from "@/components/screens/DashboardScreen";
@@ -49,6 +50,11 @@ export function AppShell() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [addClientRequest, setAddClientRequest] = useState(0);
+  const [openClientRequest, setOpenClientRequest] = useState<{
+    clientId: string;
+    requestId: number;
+  } | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const title = useMemo(() => screenMap[activeTab], [activeTab]);
   const canRenderContent = !isLoading && !loadError;
 
@@ -103,6 +109,14 @@ export function AppShell() {
   function openAddClientFlow() {
     setActiveTab("clients");
     setAddClientRequest((request) => request + 1);
+  }
+
+  function openClientWorkspaceFromSearch(clientId: string) {
+    setActiveTab("clients");
+    setOpenClientRequest((request) => ({
+      clientId,
+      requestId: (request?.requestId ?? 0) + 1
+    }));
   }
 
   function handleRetryLoad() {
@@ -302,8 +316,17 @@ export function AppShell() {
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">{title}</h1>
           </div>
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-sm font-bold shadow-glow backdrop-blur-xl">
-            CF
+          <div className="flex items-center gap-2">
+            <button
+              className="tap-highlight min-h-11 rounded-2xl border border-white/15 bg-white/10 px-3 text-sm font-semibold text-white shadow-glow backdrop-blur-xl transition hover:bg-white/[0.14]"
+              onClick={() => setIsSearchOpen(true)}
+              type="button"
+            >
+              Search
+            </button>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-sm font-bold shadow-glow backdrop-blur-xl">
+              CF
+            </div>
           </div>
         </header>
 
@@ -327,6 +350,7 @@ export function AppShell() {
             onCreateClient={handleCreateClient}
             onCreateTask={handleCreateTask}
             onDeleteClient={handleDeleteClient}
+            openClientRequest={openClientRequest}
             onUpdateClient={handleUpdateClient}
             clients={clients}
           />
@@ -358,6 +382,16 @@ export function AppShell() {
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <UniversalSearchModal
+        activities={activities}
+        clients={clients}
+        deals={deals}
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onOpenClient={openClientWorkspaceFromSearch}
+        onOpenTab={setActiveTab}
+        tasks={tasks}
+      />
     </main>
   );
 }
