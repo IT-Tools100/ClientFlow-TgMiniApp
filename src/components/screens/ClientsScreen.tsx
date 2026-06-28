@@ -1,14 +1,27 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { Client, ClientStatus } from "@/types";
+import type {
+  Activity,
+  Client,
+  ClientStatus,
+  Deal,
+  DealStatus,
+  Task,
+  TaskPriority,
+  TaskStatus
+} from "@/types";
 import { Badge, getStatusTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getActivitiesByClientId } from "@/lib/services/activities";
 import type { ClientUpsertInput } from "@/lib/services/clients";
+import { getClientById } from "@/lib/services/clients";
+import { getDealsByClientId, type DealUpsertInput } from "@/lib/services/deals";
+import { getTasksByClientId, type TaskUpsertInput } from "@/lib/services/tasks";
 
 const CLIENT_STATUSES: ClientStatus[] = [
   "New",
@@ -18,6 +31,9 @@ const CLIENT_STATUSES: ClientStatus[] = [
   "Paid",
   "Lost"
 ];
+const TASK_STATUSES: TaskStatus[] = ["Today", "Upcoming", "Done", "Overdue"];
+const TASK_PRIORITIES: TaskPriority[] = ["Low", "Medium", "High"];
+const DEAL_STATUSES: DealStatus[] = ["New", "Negotiation", "Waiting Payment", "Paid", "Lost"];
 
 type StatusFilter = "All" | ClientStatus;
 
@@ -28,6 +44,21 @@ interface ClientFormState {
   status: ClientStatus;
   value: string;
   notes: string;
+}
+
+interface QuickTaskFormState {
+  title: string;
+  description: string;
+  dueDate: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+}
+
+interface QuickDealFormState {
+  title: string;
+  amount: string;
+  status: DealStatus;
+  probability: string;
 }
 
 const emptyForm: ClientFormState = {
@@ -63,10 +94,32 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function createQuickTaskForm(): QuickTaskFormState {
+  return {
+    title: "",
+    description: "",
+    dueDate: todayIsoDate(),
+    status: "Today",
+    priority: "Medium"
+  };
+}
+
+function createQuickDealForm(): QuickDealFormState {
+  return {
+    title: "",
+    amount: "",
+    status: "New",
+    probability: "40"
+  };
+}
+
 interface ClientsScreenProps {
   addClientRequest?: number;
   clients: Client[];
+  currentProfileId: string;
   onCreateClient: (input: ClientUpsertInput) => Promise<void>;
+  onCreateDeal: (input: DealUpsertInput) => Promise<void>;
+  onCreateTask: (input: TaskUpsertInput) => Promise<void>;
   onDeleteClient: (id: string) => Promise<void>;
   onUpdateClient: (id: string, input: ClientUpsertInput) => Promise<void>;
 }
@@ -74,7 +127,10 @@ interface ClientsScreenProps {
 export function ClientsScreen({
   addClientRequest = 0,
   clients,
+  currentProfileId,
   onCreateClient,
+  onCreateDeal,
+  onCreateTask,
   onDeleteClient,
   onUpdateClient
 }: ClientsScreenProps) {
@@ -82,7 +138,17 @@ export function ClientsScreen({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientDetails, setClientDetails] = useState<Client | null>(null);
+  const [clientTasks, setClientTasks] = useState<Task[]>([]);
+  const [clientDeals, setClientDeals] = useState<Deal[]>([]);
+  const [clientActivities, setClientActivities] = useState<Activity[]>([]);
+  const [clientDetailsError, setClientDetailsError] = useState<string | null>(null);
+  const [isClientDetailsLoading, setIsClientDetailsLoading] = useState(false);
+  const [clientDetailsReloadKey, setClientDetailsReloadKey] = useState(0);
+  const [quickFormMode, setQuickFormMode] = useState<"task" | "deal" | null>(null);
+  const [quickTaskForm, setQuickTaskForm] = useState<QuickTaskFormState>(() => createQuickTaskForm());
+  const [quickDealForm, setQuickDealForm] = useState<QuickDealFormState>(createQuickDealForm);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [form, setForm] = useState<ClientFormState>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,10 +172,34 @@ export function ClientsScreen({
     [clients]
   );
 
+  function refreshClientWorkspace() {
+    setClientDetailsReloadKey((value) => value + 1);
+  }
+
+  function openClientWorkspace(client: Client) {
+    setSelectedClientId(client.id);
+    setClientDetails(client);
+    setClientTasks([]);
+    setClientDeals([]);
+    setClientActivities([]);
+    setClientDetailsError(null);
+    setQuickFormMode(null);
+  }
+
+  function closeClientWorkspace() {
+    setSelectedClientId(null);
+    setClientDetails(null);
+    setClientTasks([]);
+    setClientDeals([]);
+    setClientActivities([]);
+    setClientDetailsError(null);
+    setQuickFormMode(null);
+  }
+
   function openAddForm() {
     setForm(emptyForm);
     setEditingClientId(null);
-    setSelectedClient(null);
+    closeClientWorkspace();
     setFormMode("add");
   }
 
@@ -117,7 +207,7 @@ export function ClientsScreen({
     setForm(clientToForm(client));
     setEditingClientId(client.id);
     setFormMode("edit");
-    setSelectedClient(null);
+    closeClientWorkspace();
   }
 
   function closeForm() {
@@ -145,13 +235,64 @@ export function ClientsScreen({
     }
   }
 
+  async function handleQuickTaskSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedClientId) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onCreateTask({
+        clientId: selectedClientId,
+        title: quickTaskForm.title,
+        description: quickTaskForm.description,
+        dueDate: quickTaskForm.dueDate,
+        status: quickTaskForm.status,
+        priority: quickTaskForm.priority
+      });
+      setQuickTaskForm(createQuickTaskForm());
+      setQuickFormMode(null);
+      refreshClientWorkspace();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleQuickDealSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedClientId) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onCreateDeal({
+        clientId: selectedClientId,
+        title: quickDealForm.title,
+        amount: Number(quickDealForm.amount) || 0,
+        status: quickDealForm.status,
+        probability: Math.min(100, Math.max(0, Number(quickDealForm.probability) || 0))
+      });
+      setQuickDealForm(createQuickDealForm());
+      setQuickFormMode(null);
+      refreshClientWorkspace();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function confirmDeleteClient(clientId: string) {
     setIsSubmitting(true);
 
     try {
       await onDeleteClient(clientId);
-      if (selectedClient?.id === clientId) {
-        setSelectedClient(null);
+      if (selectedClientId === clientId) {
+        closeClientWorkspace();
       }
       if (editingClientId === clientId) {
         closeForm();
@@ -166,10 +307,54 @@ export function ClientsScreen({
     if (addClientRequest > 0) {
       setForm(emptyForm);
       setEditingClientId(null);
-      setSelectedClient(null);
+      closeClientWorkspace();
       setFormMode("add");
     }
   }, [addClientRequest]);
+
+  useEffect(() => {
+    let alive = true;
+
+    if (selectedClientId) {
+      setIsClientDetailsLoading(true);
+      setClientDetailsError(null);
+
+      Promise.all([
+        getClientById(currentProfileId, selectedClientId),
+        getTasksByClientId(currentProfileId, selectedClientId),
+        getDealsByClientId(currentProfileId, selectedClientId),
+        getActivitiesByClientId(currentProfileId, selectedClientId)
+      ])
+        .then(([details, relatedTasks, relatedDeals, relatedActivities]) => {
+          if (!alive) {
+            return;
+          }
+
+          setClientDetails(details);
+          setClientTasks(relatedTasks);
+          setClientDeals(relatedDeals);
+          setClientActivities(relatedActivities);
+        })
+        .catch((error) => {
+          if (!alive) {
+            return;
+          }
+
+          setClientDetailsError(
+            error instanceof Error ? error.message : "Failed to load client workspace"
+          );
+        })
+        .finally(() => {
+          if (alive) {
+            setIsClientDetailsLoading(false);
+          }
+        });
+    }
+
+    return () => {
+      alive = false;
+    };
+  }, [clientDetailsReloadKey, currentProfileId, selectedClientId]);
 
   return (
     <section className="space-y-5">
@@ -232,7 +417,7 @@ export function ClientsScreen({
                 <div className="flex items-start justify-between gap-3">
                   <button
                     className="tap-highlight min-w-0 flex-1 text-left"
-                    onClick={() => setSelectedClient(client)}
+                    onClick={() => openClientWorkspace(client)}
                     type="button"
                   >
                     <h3 className="truncate font-semibold text-white">{client.name}</h3>
@@ -250,7 +435,7 @@ export function ClientsScreen({
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Button onClick={() => setSelectedClient(client)} variant="ghost">
+                  <Button onClick={() => openClientWorkspace(client)} variant="ghost">
                     Details
                   </Button>
                   <Button onClick={() => openEditForm(client)} variant="secondary">
@@ -281,53 +466,175 @@ export function ClientsScreen({
         </div>
       </section>
 
-      {selectedClient ? (
+      {selectedClientId ? (
         <div className="fixed inset-0 z-50 flex items-end bg-black/55 px-4 pb-24 backdrop-blur-sm">
-          <GlassCard className="mx-auto w-full max-w-md p-5">
+          <GlassCard className="modal-enter mx-auto max-h-[86vh] w-full max-w-md overflow-y-auto p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-                  Client detail
+                  Client workspace
                 </p>
-                <h2 className="mt-1 text-2xl font-bold text-white">{selectedClient.name}</h2>
+                <h2 className="mt-1 text-2xl font-bold text-white">
+                  {clientDetails?.name ?? "Client"}
+                </h2>
               </div>
               <button
-                aria-label="Close client details"
+                aria-label="Close client workspace"
                 className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
-                onClick={() => setSelectedClient(null)}
+                onClick={closeClientWorkspace}
                 type="button"
               >
                 Close
               </button>
             </div>
-            <div className="mt-5 space-y-3">
-              <DetailRow label="Contact" value={selectedClient.contact} />
-              <DetailRow label="Source" value={selectedClient.source} />
-              <DetailRow label="Value" value={moneyFormatter.format(selectedClient.value)} />
-              <DetailRow label="Created" value={selectedClient.createdAt} />
-              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
-                <p className="mb-2 text-xs text-app-muted">Status</p>
-                <Badge tone={getStatusTone(selectedClient.status)}>{selectedClient.status}</Badge>
+
+            {clientDetailsError ? (
+              <div className="mt-5 rounded-2xl border border-accent-red/30 bg-accent-red/[0.12] p-4">
+                <p className="text-sm leading-6 text-rose-100">{clientDetailsError}</p>
+                <Button className="mt-3 w-full" onClick={refreshClientWorkspace} variant="ghost">
+                  Retry
+                </Button>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
-                <p className="mb-2 text-xs text-app-muted">Notes</p>
-                <p className="text-sm leading-6 text-white">
-                  {selectedClient.notes || "No notes yet."}
-                </p>
+            ) : null}
+
+            {clientDetails ? (
+              <>
+                <div className="mt-5 space-y-3">
+                  <DetailRow label="Contact" value={clientDetails.contact || "Not specified"} />
+                  <DetailRow label="Source" value={clientDetails.source || "Not specified"} />
+                  <DetailRow label="Value" value={moneyFormatter.format(clientDetails.value)} />
+                  <DetailRow label="Created" value={formatDateTime(clientDetails.createdAt)} />
+                  <DetailRow label="Updated" value={formatDateTime(clientDetails.updatedAt)} />
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+                    <p className="mb-2 text-xs text-app-muted">Status</p>
+                    <Badge tone={getStatusTone(clientDetails.status)}>{clientDetails.status}</Badge>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+                    <p className="mb-2 text-xs text-app-muted">Notes</p>
+                    <p className="text-sm leading-6 text-white">
+                      {clientDetails.notes || "No notes yet."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <Button onClick={() => openEditForm(clientDetails)} variant="secondary">
+                    Edit
+                  </Button>
+                  <Button
+                    className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
+                    onClick={() => setClientToDelete(clientDetails)}
+                    variant="ghost"
+                  >
+                    Delete
+                  </Button>
+                  <Button onClick={() => setQuickFormMode("task")} variant="secondary">
+                    Add Task
+                  </Button>
+                  <Button onClick={() => setQuickFormMode("deal")} variant="secondary">
+                    Add Deal
+                  </Button>
+                </div>
+
+                {quickFormMode === "task" ? (
+                  <QuickTaskForm
+                    form={quickTaskForm}
+                    isSubmitting={isSubmitting}
+                    onCancel={() => setQuickFormMode(null)}
+                    onChange={setQuickTaskForm}
+                    onSubmit={handleQuickTaskSubmit}
+                  />
+                ) : null}
+
+                {quickFormMode === "deal" ? (
+                  <QuickDealForm
+                    form={quickDealForm}
+                    isSubmitting={isSubmitting}
+                    onCancel={() => setQuickFormMode(null)}
+                    onChange={setQuickDealForm}
+                    onSubmit={handleQuickDealSubmit}
+                  />
+                ) : null}
+
+                <ClientWorkspaceSection
+                  emptyDescription="There are no Supabase tasks connected to this client yet."
+                  emptyTitle="No client tasks"
+                  isLoading={isClientDetailsLoading}
+                  itemCount={clientTasks.length}
+                  title="Tasks"
+                >
+                  {clientTasks.map((task) => (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={task.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">{task.title}</p>
+                          <p className="mt-1 text-xs leading-5 text-app-muted">
+                            {task.description || "No description."}
+                          </p>
+                        </div>
+                        <Badge tone={getStatusTone(task.status)}>{task.status}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <InfoPill label="Due" value={task.dueDate} />
+                        <InfoPill label="Priority" value={task.priority} />
+                      </div>
+                    </div>
+                  ))}
+                </ClientWorkspaceSection>
+
+                <ClientWorkspaceSection
+                  emptyDescription="There are no Supabase deals connected to this client yet."
+                  emptyTitle="No client deals"
+                  isLoading={isClientDetailsLoading}
+                  itemCount={clientDeals.length}
+                  title="Deals"
+                >
+                  {clientDeals.map((deal) => (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={deal.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">{deal.title}</p>
+                          <p className="mt-1 text-xs text-app-muted">
+                            {moneyFormatter.format(deal.amount)} · {deal.probability}%
+                          </p>
+                        </div>
+                        <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                      </div>
+                      <p className="mt-3 text-xs text-slate-400">
+                        Updated {formatDateTime(deal.updatedAt)}
+                      </p>
+                    </div>
+                  ))}
+                </ClientWorkspaceSection>
+
+                <ClientWorkspaceSection
+                  emptyDescription="There is no Supabase activity history for this client yet."
+                  emptyTitle="No client activity"
+                  isLoading={isClientDetailsLoading}
+                  itemCount={clientActivities.length}
+                  title="Activity"
+                >
+                  {clientActivities.map((activity) => (
+                    <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={activity.id}>
+                      <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent-cyan shadow-[0_0_18px_rgba(34,211,238,0.72)]" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-white">{activity.title}</p>
+                          <span className="text-[11px] text-slate-500">{activity.time}</span>
+                        </div>
+                        <p className="mt-1 text-sm leading-5 text-app-muted">
+                          {activity.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </ClientWorkspaceSection>
+              </>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+                <p className="text-sm text-app-muted">Loading client workspace...</p>
               </div>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <Button onClick={() => openEditForm(selectedClient)} variant="secondary">
-                Edit
-              </Button>
-              <Button
-                className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                onClick={() => setClientToDelete(selectedClient)}
-                variant="ghost"
-              >
-                Delete
-              </Button>
-            </div>
+            )}
           </GlassCard>
         </div>
       ) : null}
@@ -458,6 +765,224 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <span className="min-w-0 truncate text-sm font-semibold text-white">{value}</span>
     </div>
   );
+}
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.07] px-3 py-2">
+      <p className="text-[11px] text-app-muted">{label}</p>
+      <p className="mt-1 truncate text-xs font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function ClientWorkspaceSection({
+  children,
+  emptyDescription,
+  emptyTitle,
+  isLoading,
+  itemCount,
+  title
+}: {
+  children: React.ReactNode;
+  emptyDescription: string;
+  emptyTitle: string;
+  isLoading: boolean;
+  itemCount: number;
+  title: string;
+}) {
+  return (
+    <section className="mt-6">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-base font-bold text-white">{title}</h3>
+        <span className="text-xs font-semibold text-app-muted">{itemCount}</span>
+      </div>
+      {itemCount > 0 ? <div className="space-y-3">{children}</div> : null}
+      {itemCount === 0 && !isLoading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+          <p className="text-sm font-semibold text-white">{emptyTitle}</p>
+          <p className="mt-1 text-sm leading-5 text-app-muted">{emptyDescription}</p>
+        </div>
+      ) : null}
+      {itemCount === 0 && isLoading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+          <p className="text-sm text-app-muted">Loading...</p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function QuickTaskForm({
+  form,
+  isSubmitting,
+  onCancel,
+  onChange,
+  onSubmit
+}: {
+  form: QuickTaskFormState;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onChange: (form: QuickTaskFormState) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-white/[0.07] p-4" onSubmit={onSubmit}>
+      <p className="text-sm font-semibold text-white">Quick task</p>
+      <Field label="Title">
+        <input
+          className={inputClass}
+          onChange={(event) => onChange({ ...form, title: event.target.value })}
+          placeholder="Follow up with client"
+          required
+          value={form.title}
+        />
+      </Field>
+      <Field label="Description">
+        <textarea
+          className={`${inputClass} min-h-24 resize-none py-3`}
+          onChange={(event) => onChange({ ...form, description: event.target.value })}
+          placeholder="What needs to be done?"
+          value={form.description}
+        />
+      </Field>
+      <Field label="Due date">
+        <input
+          className={inputClass}
+          onChange={(event) => onChange({ ...form, dueDate: event.target.value })}
+          required
+          type="date"
+          value={form.dueDate}
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Status">
+          <select
+            className={inputClass}
+            onChange={(event) => onChange({ ...form, status: event.target.value as TaskStatus })}
+            value={form.status}
+          >
+            {TASK_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Priority">
+          <select
+            className={inputClass}
+            onChange={(event) =>
+              onChange({ ...form, priority: event.target.value as TaskPriority })
+            }
+            value={form.priority}
+          >
+            {TASK_PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {priority}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Button disabled={isSubmitting} onClick={onCancel} variant="ghost">
+          Cancel
+        </Button>
+        <Button disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Saving..." : "Create Task"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function QuickDealForm({
+  form,
+  isSubmitting,
+  onCancel,
+  onChange,
+  onSubmit
+}: {
+  form: QuickDealFormState;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onChange: (form: QuickDealFormState) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-white/[0.07] p-4" onSubmit={onSubmit}>
+      <p className="text-sm font-semibold text-white">Quick deal</p>
+      <Field label="Title">
+        <input
+          className={inputClass}
+          onChange={(event) => onChange({ ...form, title: event.target.value })}
+          placeholder="Website redesign"
+          required
+          value={form.title}
+        />
+      </Field>
+      <Field label="Amount">
+        <input
+          className={inputClass}
+          inputMode="numeric"
+          min="0"
+          onChange={(event) => onChange({ ...form, amount: event.target.value })}
+          placeholder="120000"
+          required
+          type="number"
+          value={form.amount}
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Status">
+          <select
+            className={inputClass}
+            onChange={(event) => onChange({ ...form, status: event.target.value as DealStatus })}
+            value={form.status}
+          >
+            {DEAL_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Probability">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            max="100"
+            min="0"
+            onChange={(event) => onChange({ ...form, probability: event.target.value })}
+            required
+            type="number"
+            value={form.probability}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Button disabled={isSubmitting} onClick={onCancel} variant="ghost">
+          Cancel
+        </Button>
+        <Button disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Saving..." : "Create Deal"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
 }
 
 function formToInput(form: ClientFormState): ClientUpsertInput {

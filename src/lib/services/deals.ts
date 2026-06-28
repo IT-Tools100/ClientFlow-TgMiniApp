@@ -55,6 +55,27 @@ export async function getDeals(profileId: string): Promise<Deal[]> {
   }
 }
 
+export async function getDealsByClientId(profileId: string, clientId: string): Promise<Deal[]> {
+  const supabase = requireSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("user_id", profileId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) {
+      throwSupabaseError("deals", "select by client", error);
+    }
+
+    return data.map(mapRowToDeal);
+  } catch (error) {
+    throwSupabaseError("deals", "select by client", error);
+  }
+}
+
 export async function createDeal(profileId: string, input: DealUpsertInput): Promise<Deal> {
   const supabase = requireSupabaseClient();
 

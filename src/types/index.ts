@@ -35,6 +35,7 @@ export interface Client {
   value: number;
   notes: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Deal {
@@ -61,10 +62,12 @@ export interface Task {
 
 export interface Activity {
   id: string;
+  clientId: string | null;
   type: ActivityType;
   title: string;
   description: string;
   time: string;
+  createdAt: string;
 }
 
 export interface Profile {

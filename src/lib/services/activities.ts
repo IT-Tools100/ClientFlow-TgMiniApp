@@ -44,10 +44,12 @@ function mapRowToActivity(row: ActivityRow): Activity {
   const type = normalizeType(row.type);
   return {
     id: row.id,
+    clientId: row.client_id,
     type,
     title: getTitle(type),
     description: row.description,
-    time: formatRelativeTime(row.created_at)
+    time: formatRelativeTime(row.created_at),
+    createdAt: row.created_at
   };
 }
 
@@ -68,6 +70,30 @@ export async function getActivities(profileId: string): Promise<Activity[]> {
     return data.map(mapRowToActivity);
   } catch (error) {
     throwSupabaseError("activities", "select", error);
+  }
+}
+
+export async function getActivitiesByClientId(
+  profileId: string,
+  clientId: string
+): Promise<Activity[]> {
+  const supabase = requireSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("activities")
+      .select("*")
+      .eq("user_id", profileId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) {
+      throwSupabaseError("activities", "select by client", error);
+    }
+
+    return data.map(mapRowToActivity);
+  } catch (error) {
+    throwSupabaseError("activities", "select by client", error);
   }
 }
 

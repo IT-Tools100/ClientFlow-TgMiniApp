@@ -319,10 +319,13 @@ export function AppShell() {
             tasks={tasks}
           />
         ) : null}
-        {canRenderContent && activeTab === "clients" ? (
+        {canRenderContent && activeTab === "clients" && currentProfile ? (
           <ClientsScreen
             addClientRequest={addClientRequest}
+            currentProfileId={currentProfile.id}
+            onCreateDeal={handleCreateDeal}
             onCreateClient={handleCreateClient}
+            onCreateTask={handleCreateTask}
             onDeleteClient={handleDeleteClient}
             onUpdateClient={handleUpdateClient}
             clients={clients}

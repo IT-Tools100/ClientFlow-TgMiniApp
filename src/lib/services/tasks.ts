@@ -59,6 +59,27 @@ export async function getTasks(profileId: string): Promise<Task[]> {
   }
 }
 
+export async function getTasksByClientId(profileId: string, clientId: string): Promise<Task[]> {
+  const supabase = requireSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", profileId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) {
+      throwSupabaseError("tasks", "select by client", error);
+    }
+
+    return data.map(mapRowToTask);
+  } catch (error) {
+    throwSupabaseError("tasks", "select by client", error);
+  }
+}
+
 export async function createTask(profileId: string, input: TaskUpsertInput): Promise<Task> {
   const supabase = requireSupabaseClient();
 

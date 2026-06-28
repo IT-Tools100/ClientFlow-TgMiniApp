@@ -9,7 +9,8 @@ export const clients: Client[] = [
     status: "In Progress",
     value: 180000,
     notes: "Needs a polished mini app launch flow and weekly progress updates.",
-    createdAt: "2026-06-18"
+    createdAt: "2026-06-18",
+    updatedAt: "2026-06-22"
   },
   {
     id: "client-2",
@@ -19,7 +20,8 @@ export const clients: Client[] = [
     status: "Waiting Payment",
     value: 95000,
     notes: "Waiting for invoice details before paying the landing refresh deposit.",
-    createdAt: "2026-06-16"
+    createdAt: "2026-06-16",
+    updatedAt: "2026-06-21"
   },
   {
     id: "client-3",
@@ -29,7 +31,8 @@ export const clients: Client[] = [
     status: "New",
     value: 45000,
     notes: "Interested in a lead capture funnel for a local yoga studio.",
-    createdAt: "2026-06-22"
+    createdAt: "2026-06-22",
+    updatedAt: "2026-06-22"
   }
 ];
 
@@ -102,23 +105,29 @@ export const tasks: Task[] = [
 export const activities: Activity[] = [
   {
     id: "activity-1",
+    clientId: "client-3",
     type: "client",
     title: "New client added",
     description: "Nika Orlova came from Instagram campaign",
-    time: "12 min ago"
+    time: "12 min ago",
+    createdAt: "2026-06-22"
   },
   {
     id: "activity-2",
+    clientId: "client-1",
     type: "deal",
     title: "Deal moved forward",
     description: "Studio Bloom approved the first milestone",
-    time: "1h ago"
+    time: "1h ago",
+    createdAt: "2026-06-22"
   },
   {
     id: "activity-3",
+    clientId: "client-2",
     type: "payment",
     title: "Payment expected",
     description: "Sokolov Beats is waiting for invoice details",
-    time: "3h ago"
+    time: "3h ago",
+    createdAt: "2026-06-22"
   }
 ];

@@ -33,7 +33,8 @@ function mapRowToClient(row: ClientRow): Client {
     status: normalizeStatus(row.status),
     value: numericValue(row.value),
     notes: row.notes ?? "",
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -54,6 +55,27 @@ export async function getClients(profileId: string): Promise<Client[]> {
     return data.map(mapRowToClient);
   } catch (error) {
     throwSupabaseError("clients", "select", error);
+  }
+}
+
+export async function getClientById(profileId: string, id: string): Promise<Client> {
+  const supabase = requireSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", profileId)
+      .single();
+
+    if (error || !data) {
+      throwSupabaseError("clients", "select detail", error);
+    }
+
+    return mapRowToClient(data);
+  } catch (error) {
+    throwSupabaseError("clients", "select detail", error);
   }
 }
 
