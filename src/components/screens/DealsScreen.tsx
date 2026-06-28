@@ -11,6 +11,8 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { DealUpsertInput } from "@/lib/services/deals";
 
 const DEAL_STATUSES: DealStatus[] = ["New", "Negotiation", "Waiting Payment", "Paid", "Lost"];
+const ACTIVE_DEAL_STATUSES = new Set<DealStatus>(["New", "Negotiation", "Waiting Payment"]);
+const MOVE_SEQUENCE: DealStatus[] = ["New", "Negotiation", "Waiting Payment", "Paid"];
 
 type StatusFilter = "All" | DealStatus;
 
@@ -39,10 +41,6 @@ const moneyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD"
 });
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function createEmptyForm(clientId: string): DealFormState {
   return {
     clientId,
@@ -63,6 +61,40 @@ function dealToForm(deal: Deal): DealFormState {
   };
 }
 
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function getDealInput(deal: Deal, status: DealStatus = deal.status): DealUpsertInput {
+  return {
+    clientId: deal.clientId,
+    title: deal.title,
+    amount: deal.amount,
+    status,
+    probability: deal.probability
+  };
+}
+
+function getNextStatus(status: DealStatus): DealStatus | null {
+  const currentIndex = MOVE_SEQUENCE.indexOf(status);
+
+  if (currentIndex < 0 || currentIndex >= MOVE_SEQUENCE.length - 1) {
+    return null;
+  }
+
+  return MOVE_SEQUENCE[currentIndex + 1];
+}
+
+function getPreviousStatus(status: DealStatus): DealStatus | null {
+  const currentIndex = MOVE_SEQUENCE.indexOf(status);
+
+  if (currentIndex <= 0) {
+    return null;
+  }
+
+  return MOVE_SEQUENCE[currentIndex - 1];
+}
+
 export function DealsScreen({
   clients,
   deals,
@@ -72,6 +104,7 @@ export function DealsScreen({
 }: DealsScreenProps) {
   const defaultClientId = clients[0]?.id ?? "";
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
   const [editingDealId, setEditingDealId] = useState<string | null>(null);
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
@@ -83,17 +116,50 @@ export function DealsScreen({
     [clients]
   );
 
-  const filteredDeals = useMemo(
-    () =>
-      deals.filter((deal) => statusFilter === "All" || deal.status === statusFilter),
-    [deals, statusFilter]
+  const filteredDeals = useMemo(() => {
+    const query = normalizeSearch(searchQuery);
+
+    return deals.filter((deal) => {
+      const clientName = clientNameById.get(deal.clientId) ?? "Unknown client";
+      const matchesStatus = statusFilter === "All" || deal.status === statusFilter;
+      const searchable = [
+        deal.title,
+        clientName,
+        deal.status,
+        String(deal.amount),
+        moneyFormatter.format(deal.amount)
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return matchesStatus && (!query || searchable.includes(query));
+    });
+  }, [clientNameById, deals, searchQuery, statusFilter]);
+
+  const visibleStages = useMemo(
+    () => (statusFilter === "All" ? DEAL_STATUSES : [statusFilter]),
+    [statusFilter]
   );
 
+  const dealsByStage = useMemo(() => {
+    const grouped = new Map<DealStatus, Deal[]>(DEAL_STATUSES.map((status) => [status, []]));
+
+    for (const deal of filteredDeals) {
+      grouped.get(deal.status)?.push(deal);
+    }
+
+    return grouped;
+  }, [filteredDeals]);
+
+  const totalPipeline = deals.reduce((total, deal) => total + deal.amount, 0);
   const activePipeline = deals
-    .filter((deal) => deal.status !== "Paid" && deal.status !== "Lost")
+    .filter((deal) => ACTIVE_DEAL_STATUSES.has(deal.status))
     .reduce((total, deal) => total + deal.amount, 0);
   const paidRevenue = deals
     .filter((deal) => deal.status === "Paid")
+    .reduce((total, deal) => total + deal.amount, 0);
+  const lostAmount = deals
+    .filter((deal) => deal.status === "Lost")
     .reduce((total, deal) => total + deal.amount, 0);
 
   function openAddForm() {
@@ -153,6 +219,20 @@ export function DealsScreen({
     }
   }
 
+  async function changeDealStatus(deal: Deal, status: DealStatus) {
+    if (deal.status === status) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onUpdateDeal(deal.id, getDealInput(deal, status));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <section className="space-y-5">
       <GlassCard className="p-5">
@@ -161,18 +241,33 @@ export function DealsScreen({
           <div>
             <p className="text-sm font-medium text-app-muted">Deal pipeline</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">
-              {moneyFormatter.format(activePipeline)}
+              {moneyFormatter.format(totalPipeline)}
             </p>
             <p className="mt-1 text-sm text-slate-300">
-              {moneyFormatter.format(paidRevenue)} paid revenue
+              {deals.length} total deals
             </p>
           </div>
           <Button onClick={openAddForm}>Add Deal</Button>
         </div>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <SummaryTile label="Active" value={moneyFormatter.format(activePipeline)} />
+          <SummaryTile label="Paid revenue" value={moneyFormatter.format(paidRevenue)} />
+          <SummaryTile label="Lost" value={moneyFormatter.format(lostAmount)} />
+          <SummaryTile label="Total count" value={String(deals.length)} />
+        </div>
       </GlassCard>
 
       <GlassCard className="p-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-app-muted">Search deals</span>
+          <input
+            className={inputClass}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Title, client, status, amount"
+            value={searchQuery}
+          />
+        </label>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {(["All", ...DEAL_STATUSES] as StatusFilter[]).map((status) => {
             const isActive = statusFilter === status;
 
@@ -200,70 +295,145 @@ export function DealsScreen({
           eyebrow="Deals"
           title="Pipeline"
         />
-        <div className="space-y-3">
-          {filteredDeals.length > 0 ? (
-            filteredDeals.map((deal) => (
-              <GlassCard
-                className="p-4"
-                data-testid="deal-card"
-                data-title={deal.title}
-                key={deal.id}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-white">{deal.title}</h3>
-                    <p className="mt-1 text-sm text-app-muted">
-                      {clientNameById.get(deal.clientId) ?? "Unknown client"}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      Updated {deal.updatedAt} · Created {deal.createdAt}
-                    </p>
-                  </div>
-                  <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/[0.07] px-3 py-2">
-                  <span className="text-xs text-app-muted">Amount</span>
-                  <span className="text-sm font-semibold text-white">
-                    {moneyFormatter.format(deal.amount)}
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <div className="mb-2 flex items-center justify-between text-xs text-app-muted">
-                    <span>Probability</span>
-                    <span>{deal.probability}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-accent-green to-accent-cyan"
-                      style={{ width: `${deal.probability}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button onClick={() => openEditForm(deal)} variant="secondary">
-                    Edit
-                  </Button>
-                  <Button
-                    className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                    onClick={() => setDealToDelete(deal)}
-                    variant="ghost"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </GlassCard>
-            ))
-          ) : (
+        <div className="space-y-5">
+          {deals.length === 0 ? (
             <EmptyState
               actionLabel="Add Deal"
-              description={
-                deals.length === 0
-                  ? "Add the first opportunity and connect it to a client in the demo pipeline."
-                  : "No deals match this status filter. Switch status to review the full pipeline."
-              }
+              description="Add the first opportunity and connect it to a client."
               onAction={openAddForm}
-              title={deals.length === 0 ? "No deals yet" : "No deal results"}
+              title="No deals yet"
             />
+          ) : filteredDeals.length === 0 ? (
+            <EmptyState
+              description="No deals match the current search or status filter."
+              title="No deal results"
+            />
+          ) : (
+            visibleStages.map((stage) => {
+              const stageDeals = dealsByStage.get(stage) ?? [];
+              const stageAmount = stageDeals.reduce((total, deal) => total + deal.amount, 0);
+
+              return (
+                <section className="space-y-3" key={stage}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-white">{stage}</h3>
+                      <p className="text-xs text-app-muted">
+                        {stageDeals.length} deals · {moneyFormatter.format(stageAmount)}
+                      </p>
+                    </div>
+                    <Badge tone={getStatusTone(stage)}>{stageDeals.length}</Badge>
+                  </div>
+
+                  {stageDeals.length > 0 ? (
+                    <div className="space-y-3">
+                      {stageDeals.map((deal) => {
+                        const nextStatus = getNextStatus(deal.status);
+                        const previousStatus = getPreviousStatus(deal.status);
+
+                        return (
+                          <GlassCard
+                            className="p-4"
+                            data-testid="deal-card"
+                            data-title={deal.title}
+                            key={deal.id}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h4 className="truncate font-semibold text-white">{deal.title}</h4>
+                                <p className="mt-1 text-sm text-app-muted">
+                                  {clientNameById.get(deal.clientId) ?? "Unknown client"}
+                                </p>
+                                <p className="mt-2 text-xs text-slate-400">
+                                  Updated {deal.updatedAt} · Created {deal.createdAt}
+                                </p>
+                              </div>
+                              <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                            </div>
+                            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/[0.07] px-3 py-2">
+                              <span className="text-xs text-app-muted">Amount</span>
+                              <span className="text-sm font-semibold text-white">
+                                {moneyFormatter.format(deal.amount)}
+                              </span>
+                            </div>
+                            <div className="mt-3">
+                              <div className="mb-2 flex items-center justify-between text-xs text-app-muted">
+                                <span>Probability</span>
+                                <span>{deal.probability}%</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-accent-green to-accent-cyan"
+                                  style={{ width: `${deal.probability}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <Button
+                                disabled={!previousStatus || isSubmitting}
+                                onClick={() =>
+                                  previousStatus
+                                    ? void changeDealStatus(deal, previousStatus)
+                                    : undefined
+                                }
+                                variant="ghost"
+                              >
+                                Move previous
+                              </Button>
+                              <Button
+                                disabled={!nextStatus || deal.status === "Lost" || isSubmitting}
+                                onClick={() =>
+                                  nextStatus ? void changeDealStatus(deal, nextStatus) : undefined
+                                }
+                                variant="secondary"
+                              >
+                                Move next
+                              </Button>
+                              <Button
+                                disabled={deal.status === "Paid" || isSubmitting}
+                                onClick={() => void changeDealStatus(deal, "Paid")}
+                                variant="secondary"
+                              >
+                                Mark Paid
+                              </Button>
+                              <Button
+                                disabled={deal.status === "Lost" || isSubmitting}
+                                onClick={() => void changeDealStatus(deal, "Lost")}
+                                variant="ghost"
+                              >
+                                Mark Lost
+                              </Button>
+                              <Button
+                                disabled={isSubmitting}
+                                onClick={() => openEditForm(deal)}
+                                variant="secondary"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
+                                disabled={isSubmitting}
+                                onClick={() => setDealToDelete(deal)}
+                                variant="ghost"
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </GlassCard>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <GlassCard className="p-4">
+                      <p className="text-sm font-medium text-white">No deals in {stage}</p>
+                      <p className="mt-1 text-xs text-app-muted">
+                        Deals moved to this stage will appear here.
+                      </p>
+                    </GlassCard>
+                  )}
+                </section>
+              );
+            })
           )}
         </div>
       </section>
@@ -386,5 +556,14 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
       <span className="mb-2 block text-xs font-semibold text-app-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.07] px-3 py-2">
+      <p className="text-xs text-app-muted">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-white">{value}</p>
+    </div>
   );
 }
