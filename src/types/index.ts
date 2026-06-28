@@ -58,6 +58,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Activity {

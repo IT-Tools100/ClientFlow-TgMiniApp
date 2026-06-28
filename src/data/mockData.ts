@@ -78,7 +78,8 @@ export const tasks: Task[] = [
     dueDate: "2026-06-23",
     status: "Today",
     priority: "High",
-    createdAt: "2026-06-22"
+    createdAt: "2026-06-22",
+    updatedAt: "2026-06-22"
   },
   {
     id: "task-2",
@@ -88,7 +89,8 @@ export const tasks: Task[] = [
     dueDate: "2026-06-23",
     status: "Today",
     priority: "Medium",
-    createdAt: "2026-06-21"
+    createdAt: "2026-06-21",
+    updatedAt: "2026-06-22"
   },
   {
     id: "task-3",
@@ -98,7 +100,8 @@ export const tasks: Task[] = [
     dueDate: "2026-06-24",
     status: "Upcoming",
     priority: "Low",
-    createdAt: "2026-06-22"
+    createdAt: "2026-06-22",
+    updatedAt: "2026-06-22"
   }
 ];
 

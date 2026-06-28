@@ -14,10 +14,6 @@ export interface TaskUpsertInput {
 const taskStatuses = new Set<TaskStatus>(["Today", "Upcoming", "Done", "Overdue"]);
 const taskPriorities = new Set<TaskPriority>(["Low", "Medium", "High"]);
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function normalizeStatus(value: string | null | undefined): TaskStatus {
   return value && taskStatuses.has(value as TaskStatus) ? (value as TaskStatus) : "Today";
 }
@@ -32,10 +28,11 @@ function mapRowToTask(row: TaskRow): Task {
     clientId: row.client_id ?? "",
     title: row.title,
     description: row.description ?? "",
-    dueDate: row.due_date ?? todayIsoDate(),
+    dueDate: row.due_date ?? "",
     status: normalizeStatus(row.status),
     priority: normalizePriority(row.priority),
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 

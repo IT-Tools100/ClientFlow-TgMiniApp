@@ -13,8 +13,9 @@ import type { TaskUpsertInput } from "@/lib/services/tasks";
 const TASK_STATUSES: TaskStatus[] = ["Today", "Upcoming", "Done", "Overdue"];
 const TASK_PRIORITIES: TaskPriority[] = ["Low", "Medium", "High"];
 
-type StatusFilter = "All" | TaskStatus;
+type TaskViewFilter = "All" | "Active" | "Completed" | "Due Today" | "Overdue";
 type PriorityFilter = "All" | TaskPriority;
+type ClientFilter = "All" | string;
 
 interface TaskFormState {
   clientId: string;
@@ -36,8 +37,100 @@ interface TasksScreenProps {
 const inputClass =
   "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+function getLocalTodayKey() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateKey(value: string | null | undefined) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
+
+  return match?.[1] ?? "";
+}
+
+function isTaskCompleted(task: Task) {
+  return task.status === "Done";
+}
+
+function isTaskDueToday(task: Task) {
+  const dueDateKey = normalizeDateKey(task.dueDate);
+
+  return !isTaskCompleted(task) && dueDateKey !== "" && dueDateKey === getLocalTodayKey();
+}
+
+function isTaskOverdue(task: Task) {
+  const dueDateKey = normalizeDateKey(task.dueDate);
+
+  return !isTaskCompleted(task) && dueDateKey !== "" && dueDateKey < getLocalTodayKey();
+}
+
+function getTaskComputedState(task: Task): "Completed" | "Due Today" | "Overdue" | "Active" {
+  if (isTaskCompleted(task)) {
+    return "Completed";
+  }
+
+  if (isTaskOverdue(task)) {
+    return "Overdue";
+  }
+
+  if (isTaskDueToday(task)) {
+    return "Due Today";
+  }
+
+  return "Active";
+}
+
+function getTaskBadge(task: Task, computedState: ReturnType<typeof getTaskComputedState>) {
+  if (computedState === "Completed") {
+    return {
+      label: "Done",
+      tone: getStatusTone("Done")
+    };
+  }
+
+  if (computedState === "Overdue") {
+    return {
+      label: "Overdue",
+      tone: getStatusTone("Overdue")
+    };
+  }
+
+  if (computedState === "Due Today") {
+    return {
+      label: "Today",
+      tone: getStatusTone("Today")
+    };
+  }
+
+  return {
+    label: task.status === "Upcoming" ? "Upcoming" : "Active",
+    tone: task.status === "Upcoming" ? getStatusTone("Upcoming") : getStatusTone("Today")
+  };
+}
+
+function getActiveStatusForDueDate(dueDate: string): TaskStatus {
+  const dueDateKey = normalizeDateKey(dueDate);
+  const todayKey = getLocalTodayKey();
+
+  if (!dueDateKey) {
+    return "Upcoming";
+  }
+
+  if (dueDateKey < todayKey) {
+    return "Overdue";
+  }
+
+  return dueDateKey === todayKey ? "Today" : "Upcoming";
 }
 
 function createEmptyForm(clientId: string): TaskFormState {
@@ -45,7 +138,7 @@ function createEmptyForm(clientId: string): TaskFormState {
     clientId,
     title: "",
     description: "",
-    dueDate: todayIsoDate(),
+    dueDate: getLocalTodayKey(),
     status: "Today",
     priority: "Medium"
   };
@@ -70,8 +163,10 @@ export function TasksScreen({
   onUpdateTask
 }: TasksScreenProps) {
   const defaultClientId = clients[0]?.id ?? "";
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [taskViewFilter, setTaskViewFilter] = useState<TaskViewFilter>("All");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
+  const [clientFilter, setClientFilter] = useState<ClientFilter>("All");
+  const [query, setQuery] = useState("");
   const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -84,18 +179,48 @@ export function TasksScreen({
   );
 
   const filteredTasks = useMemo(
-    () =>
-      tasks.filter((task) => {
-        const matchesStatus = statusFilter === "All" || task.status === statusFilter;
-        const matchesPriority = priorityFilter === "All" || task.priority === priorityFilter;
+    () => {
+      const normalizedQuery = query.trim().toLowerCase();
 
-        return matchesStatus && matchesPriority;
-      }),
-    [priorityFilter, statusFilter, tasks]
+      return tasks.filter((task) => {
+        const clientName = clientNameById.get(task.clientId) ?? "Unknown client";
+        const searchable = [
+          task.title,
+          task.description,
+          clientName,
+          task.status,
+          task.priority
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
+        const computedState = getTaskComputedState(task);
+        const matchesTaskView =
+          taskViewFilter === "All" ||
+          (taskViewFilter === "Active" && computedState !== "Completed") ||
+          (taskViewFilter === "Completed" && computedState === "Completed") ||
+          (taskViewFilter === "Due Today" && computedState === "Due Today") ||
+          (taskViewFilter === "Overdue" && computedState === "Overdue");
+        const matchesPriority = priorityFilter === "All" || task.priority === priorityFilter;
+        const matchesClient = clientFilter === "All" || task.clientId === clientFilter;
+
+        return matchesQuery && matchesTaskView && matchesPriority && matchesClient;
+      });
+    },
+    [clientFilter, clientNameById, priorityFilter, query, taskViewFilter, tasks]
   );
 
-  const todayCount = tasks.filter((task) => task.status === "Today").length;
-  const overdueCount = tasks.filter((task) => task.status === "Overdue").length;
+  const summary = useMemo(
+    () => ({
+      total: tasks.length,
+      active: tasks.filter((task) => getTaskComputedState(task) !== "Completed").length,
+      completed: tasks.filter((task) => getTaskComputedState(task) === "Completed").length,
+      dueToday: tasks.filter((task) => getTaskComputedState(task) === "Due Today").length,
+      overdue: tasks.filter((task) => getTaskComputedState(task) === "Overdue").length
+    }),
+    [tasks]
+  );
 
   function openAddForm() {
     setForm(createEmptyForm(defaultClientId));
@@ -146,16 +271,18 @@ export function TasksScreen({
     }
   }
 
-  async function markDone(task: Task) {
+  async function toggleComplete(task: Task) {
     setIsSubmitting(true);
 
     try {
+      const isCompleted = isTaskCompleted(task);
+
       await onUpdateTask(task.id, {
         clientId: task.clientId,
         title: task.title,
         description: task.description,
         dueDate: task.dueDate,
-        status: "Done",
+        status: isCompleted ? getActiveStatusForDueDate(task.dueDate) : "Done",
         priority: task.priority
       });
     } finally {
@@ -170,22 +297,49 @@ export function TasksScreen({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-app-muted">Task control</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-white">{todayCount}</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-white">{summary.dueToday}</p>
             <p className="mt-1 text-sm text-slate-300">
-              Today tasks · {overdueCount} overdue
+              Due today · {summary.overdue} overdue
             </p>
           </div>
           <Button onClick={openAddForm}>Add Task</Button>
         </div>
       </GlassCard>
 
+      <div className="grid grid-cols-2 gap-3">
+        <TaskMetric label="Total tasks" value={summary.total} />
+        <TaskMetric label="Active tasks" value={summary.active} />
+        <TaskMetric label="Completed" value={summary.completed} />
+        <TaskMetric label="Due today" value={summary.dueToday} tone="cyan" />
+        <TaskMetric className="col-span-2" label="Overdue" value={summary.overdue} tone="red" />
+      </div>
+
       <GlassCard className="p-4">
         <div className="space-y-3">
-          <FilterRow
-            activeValue={statusFilter}
-            items={["All", ...TASK_STATUSES]}
-            onChange={(value) => setStatusFilter(value as StatusFilter)}
+          <input
+            className={inputClass}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search title, client, status, priority"
+            type="search"
+            value={query}
           />
+          <FilterRow
+            activeValue={taskViewFilter}
+            items={["All", "Active", "Completed", "Due Today", "Overdue"]}
+            onChange={(value) => setTaskViewFilter(value as TaskViewFilter)}
+          />
+          <select
+            className={inputClass}
+            onChange={(event) => setClientFilter(event.target.value)}
+            value={clientFilter}
+          >
+            <option value="All">All clients</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
           <FilterRow
             activeValue={priorityFilter}
             items={["All", ...TASK_PRIORITIES]}
@@ -198,22 +352,37 @@ export function TasksScreen({
         <SectionHeader action={`${filteredTasks.length} shown`} eyebrow="Tasks" title="Task list" />
         <div className="space-y-3">
           {filteredTasks.length > 0 ? (
-            filteredTasks.map((task) => (
+            filteredTasks.map((task) => {
+              const computedState = getTaskComputedState(task);
+              const isCompleted = computedState === "Completed";
+              const isOverdue = computedState === "Overdue";
+              const taskBadge = getTaskBadge(task, computedState);
+              const clientName = clientNameById.get(task.clientId) ?? "Unknown client";
+
+              return (
               <GlassCard
-                className="p-4"
+                className={`p-4 ${isOverdue ? "border-accent-red/40 bg-accent-red/[0.10]" : ""} ${
+                  isCompleted ? "opacity-75" : ""
+                }`}
                 data-testid="task-card"
                 data-title={task.title}
                 key={task.id}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-white">{task.title}</h3>
+                    <h3
+                      className={`truncate font-semibold text-white ${
+                        isCompleted ? "line-through decoration-white/50" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </h3>
                     <p className="mt-1 text-sm text-app-muted">
-                      {clientNameById.get(task.clientId) ?? "Unknown client"}
+                      {clientName}
                     </p>
                     <p className="mt-2 text-xs leading-5 text-slate-400">{task.description}</p>
                   </div>
-                  <Badge tone={getStatusTone(task.status)}>{task.status}</Badge>
+                  <Badge tone={taskBadge.tone}>{taskBadge.label}</Badge>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <InfoPill label="Due" value={task.dueDate} />
@@ -221,11 +390,11 @@ export function TasksScreen({
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <Button
-                    disabled={task.status === "Done" || isSubmitting}
-                    onClick={() => void markDone(task)}
+                    disabled={isSubmitting}
+                    onClick={() => void toggleComplete(task)}
                     variant="secondary"
                   >
-                    Done
+                    {isCompleted ? "Reopen" : "Complete"}
                   </Button>
                   <Button onClick={() => openEditForm(task)} variant="ghost">
                     Edit
@@ -239,17 +408,14 @@ export function TasksScreen({
                   </Button>
                 </div>
               </GlassCard>
-            ))
+              );
+            })
           ) : (
             <EmptyState
               actionLabel="Add Task"
-              description={
-                tasks.length === 0
-                  ? "Create the first follow-up, deadline, or delivery task for a client."
-                  : "No tasks match these status and priority filters. Adjust filters to see more."
-              }
+              description={getEmptyStateDescription(tasks.length, taskViewFilter)}
               onAction={openAddForm}
-              title={tasks.length === 0 ? "No tasks yet" : "No task results"}
+              title={getEmptyStateTitle(tasks.length, taskViewFilter)}
             />
           )}
         </div>
@@ -417,6 +583,31 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
   );
 }
 
+function TaskMetric({
+  className = "",
+  label,
+  tone = "slate",
+  value
+}: {
+  className?: string;
+  label: string;
+  tone?: "cyan" | "red" | "slate";
+  value: number;
+}) {
+  const toneClass = {
+    cyan: "border-accent-cyan/30 bg-accent-cyan/[0.12]",
+    red: "border-accent-red/30 bg-accent-red/[0.12]",
+    slate: "border-white/10 bg-white/[0.08]"
+  }[tone];
+
+  return (
+    <GlassCard className={`p-4 ${toneClass} ${className}`}>
+      <p className="text-xs text-app-muted">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+    </GlassCard>
+  );
+}
+
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white/[0.07] px-3 py-2">
@@ -424,4 +615,36 @@ function InfoPill({ label, value }: { label: string; value: string }) {
       <p className="mt-1 truncate text-sm font-semibold text-white">{value}</p>
     </div>
   );
+}
+
+function getEmptyStateTitle(totalTasks: number, filter: TaskViewFilter) {
+  if (totalTasks === 0) {
+    return "No tasks yet";
+  }
+
+  if (filter === "Overdue") {
+    return "No overdue tasks";
+  }
+
+  if (filter === "Due Today") {
+    return "No tasks due today";
+  }
+
+  return "No task results";
+}
+
+function getEmptyStateDescription(totalTasks: number, filter: TaskViewFilter) {
+  if (totalTasks === 0) {
+    return "Create the first follow-up, deadline, or delivery task for a client.";
+  }
+
+  if (filter === "Overdue") {
+    return "Nothing is past due under the current filters.";
+  }
+
+  if (filter === "Due Today") {
+    return "There are no active tasks due today under the current filters.";
+  }
+
+  return "No tasks match the current search, client, priority, or task filter.";
 }
