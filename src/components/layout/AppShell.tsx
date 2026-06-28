@@ -350,7 +350,7 @@ export function AppShell() {
           />
         ) : null}
         {canRenderContent && activeTab === "analytics" ? (
-          <AnalyticsScreen clients={clients} deals={deals} tasks={tasks} />
+          <AnalyticsScreen activities={activities} clients={clients} deals={deals} tasks={tasks} />
         ) : null}
         {canRenderContent && activeTab === "profile" ? (
           <ProfileScreen currentProfile={currentProfile} telegramUser={telegramUser} />
