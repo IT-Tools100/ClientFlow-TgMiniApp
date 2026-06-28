@@ -27,7 +27,6 @@ interface TaskFormState {
   description: string;
   dueDate: string;
   completion: TaskCompletionState;
-  dueState: TaskDueState;
   priority: TaskPriority;
 }
 
@@ -52,13 +51,6 @@ function localDateKeyFromDate(date: Date) {
 
 function getLocalTodayKey() {
   return localDateKeyFromDate(new Date());
-}
-
-function getOffsetLocalDateKey(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-
-  return localDateKeyFromDate(date);
 }
 
 function normalizeDateKey(value: string | null | undefined) {
@@ -127,18 +119,6 @@ function getStatusFromCompletionAndDueState(
   return dueState;
 }
 
-function getDueDateFromDueState(dueState: TaskDueState) {
-  if (dueState === "Overdue") {
-    return getOffsetLocalDateKey(-1);
-  }
-
-  if (dueState === "Today") {
-    return getLocalTodayKey();
-  }
-
-  return getOffsetLocalDateKey(1);
-}
-
 function getTaskCompletionBadge(completion: TaskCompletionState) {
   if (completion === "Done") {
     return {
@@ -174,21 +154,6 @@ function getTaskDueBadge(dueState: TaskDueState) {
   };
 }
 
-function getSyncedDueDateForDueState(currentDueDate: string, dueState: TaskDueState) {
-  const currentKey = normalizeDateKey(currentDueDate);
-  const todayKey = getLocalTodayKey();
-
-  if (dueState === "Overdue") {
-    return currentKey && currentKey < todayKey ? currentKey : getDueDateFromDueState(dueState);
-  }
-
-  if (dueState === "Today") {
-    return getDueDateFromDueState(dueState);
-  }
-
-  return currentKey && currentKey > todayKey ? currentKey : getDueDateFromDueState(dueState);
-}
-
 function createEmptyForm(clientId: string): TaskFormState {
   return {
     clientId,
@@ -196,7 +161,6 @@ function createEmptyForm(clientId: string): TaskFormState {
     description: "",
     dueDate: getLocalTodayKey(),
     completion: "Active",
-    dueState: "Today",
     priority: "Medium"
   };
 }
@@ -208,7 +172,6 @@ function taskToForm(task: Task): TaskFormState {
     description: task.description,
     dueDate: task.dueDate,
     completion: getTaskCompletionState(task),
-    dueState: getTaskDueState(task),
     priority: task.priority
   };
 }
@@ -305,16 +268,7 @@ export function TasksScreen({
 
     setForm({
       ...form,
-      dueDate: normalizedDueDate,
-      dueState: getDueStateFromDateKey(normalizedDueDate)
-    });
-  }
-
-  function updateFormDueState(dueState: TaskDueState) {
-    setForm({
-      ...form,
-      dueDate: getSyncedDueDateForDueState(form.dueDate, dueState),
-      dueState
+      dueDate: normalizedDueDate
     });
   }
 
@@ -574,6 +528,7 @@ export function TasksScreen({
                   value={form.dueDate}
                 />
               </Field>
+              <DueStatusPreview dueDate={form.dueDate} />
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Completion">
                   <select
@@ -593,35 +548,22 @@ export function TasksScreen({
                     ))}
                   </select>
                 </Field>
-                <Field label="Due status">
+                <Field label="Priority">
                   <select
                     className={inputClass}
-                    onChange={(event) => updateFormDueState(event.target.value as TaskDueState)}
-                    value={form.dueState}
+                    onChange={(event) =>
+                      setForm({ ...form, priority: event.target.value as TaskPriority })
+                    }
+                    value={form.priority}
                   >
-                    {DUE_STATES.map((dueState) => (
-                      <option key={dueState} value={dueState}>
-                        {dueState}
+                    {TASK_PRIORITIES.map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priority}
                       </option>
                     ))}
                   </select>
                 </Field>
               </div>
-              <Field label="Priority">
-                <select
-                  className={inputClass}
-                  onChange={(event) =>
-                    setForm({ ...form, priority: event.target.value as TaskPriority })
-                  }
-                  value={form.priority}
-                >
-                  {TASK_PRIORITIES.map((priority) => (
-                    <option key={priority} value={priority}>
-                      {priority}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button disabled={isSubmitting} onClick={closeForm} variant="ghost">
                   Cancel
@@ -689,6 +631,17 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
   );
 }
 
+function DueStatusPreview({ dueDate }: { dueDate: string }) {
+  const badge = getTaskDueBadge(getDueStateFromDateKey(dueDate));
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-3 py-3">
+      <p className="mb-2 text-xs font-semibold text-app-muted">Due status</p>
+      <Badge tone={badge.tone}>{badge.label}</Badge>
+    </div>
+  );
+}
+
 function TaskMetric({
   className = "",
   label,
@@ -729,7 +682,10 @@ function formToTaskInput(form: TaskFormState): TaskUpsertInput {
     title: form.title,
     description: form.description,
     dueDate: normalizeDateKey(form.dueDate),
-    status: getStatusFromCompletionAndDueState(form.completion, form.dueState),
+    status: getStatusFromCompletionAndDueState(
+      form.completion,
+      getDueStateFromDateKey(form.dueDate)
+    ),
     priority: form.priority
   };
 }
