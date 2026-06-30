@@ -5,6 +5,7 @@ import type { Activity, Client, Deal, NavTab, Task } from "@/types";
 import { Badge, getStatusTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { fieldClass, modalCardClass } from "@/components/ui/styles";
 import {
   formatActivityType,
   formatClientStatus,
@@ -27,9 +28,6 @@ interface UniversalSearchModalProps {
 
 type TaskDueState = "Overdue" | "Today" | "Upcoming";
 type TaskCompletionState = "Active" | "Done";
-
-const inputClass =
-  "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
@@ -231,8 +229,8 @@ export function UniversalSearchModal({
   }
 
   return (
-    <div className="fade-enter fixed inset-0 z-[70] flex items-end bg-black/60 px-4 pb-24 backdrop-blur-sm">
-      <GlassCard className="modal-enter mx-auto max-h-[86vh] w-full max-w-md overflow-y-auto p-5">
+    <div className="fade-enter fixed inset-0 z-[70] flex items-end bg-black/65 px-4 pb-24 backdrop-blur-md">
+      <GlassCard className={modalCardClass}>
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
@@ -251,7 +249,7 @@ export function UniversalSearchModal({
         </div>
 
         <input
-          className={inputClass}
+          className={fieldClass}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Клиенты, задачи, сделки, действия"
           ref={inputRef}
@@ -277,7 +275,7 @@ export function UniversalSearchModal({
                 <ResultGroup title="Клиенты">
                   {results.clients.map((client) => (
                     <button
-                      className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
+                      className="tap-highlight w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.1]"
                       key={client.id}
                       onClick={() => openClient(client.id)}
                       type="button"
@@ -308,7 +306,7 @@ export function UniversalSearchModal({
 
                     return (
                       <button
-                        className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
+                        className="tap-highlight w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.1]"
                         key={task.id}
                         onClick={() => openTab("tasks")}
                         type="button"
@@ -339,7 +337,7 @@ export function UniversalSearchModal({
                 <ResultGroup title="Сделки">
                   {results.deals.map((deal) => (
                     <button
-                      className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
+                      className="tap-highlight w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.1]"
                       key={deal.id}
                       onClick={() => openTab("deals")}
                       type="button"
@@ -369,7 +367,7 @@ export function UniversalSearchModal({
                 <ResultGroup title="Действия">
                   {results.activities.map((activity) => (
                     <button
-                      className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
+                      className="tap-highlight w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.1]"
                       key={activity.id}
                       onClick={() => openTab("dashboard")}
                       type="button"

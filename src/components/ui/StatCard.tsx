@@ -20,9 +20,11 @@ export function StatCard({ label, value, detail, tone = "blue" }: StatCardProps)
       <div
         className={`pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-gradient-to-br ${tones[tone]} blur-2xl`}
       />
-      <p className="text-xs font-medium text-app-muted">{label}</p>
-      <p className="mt-3 text-2xl font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-xs text-slate-300">{detail}</p>
+      <p className="text-xs font-medium leading-4 text-app-muted">{label}</p>
+      <p className="mt-3 break-words text-2xl font-bold leading-tight tracking-tight text-white">
+        {value}
+      </p>
+      <p className="mt-2 text-xs leading-5 text-slate-300">{detail}</p>
     </GlassCard>
   );
 }

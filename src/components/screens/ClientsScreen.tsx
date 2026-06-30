@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { fieldClass, modalBackdropClass, modalCardClass } from "@/components/ui/styles";
 import { getActivitiesByClientId } from "@/lib/services/activities";
 import {
   formatClientStatus,
@@ -77,8 +78,7 @@ const emptyForm: ClientFormState = {
   notes: ""
 };
 
-const inputClass =
-  "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
+const inputClass = fieldClass;
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
@@ -439,7 +439,7 @@ export function ClientsScreen({
         <div className="space-y-3">
           {filteredClients.length > 0 ? (
             filteredClients.map((client) => (
-              <GlassCard className="p-4" key={client.id}>
+              <GlassCard className="p-4" interactive key={client.id}>
                 <div className="flex items-start justify-between gap-3">
                   <button
                     className="tap-highlight min-w-0 flex-1 text-left"
@@ -469,11 +469,7 @@ export function ClientsScreen({
                   <Button onClick={() => openEditForm(client)} variant="secondary">
                     Изменить
                   </Button>
-                  <Button
-                    className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                    onClick={() => setClientToDelete(client)}
-                    variant="ghost"
-                  >
+                  <Button onClick={() => setClientToDelete(client)} variant="danger">
                     Удалить
                   </Button>
                 </div>
@@ -495,8 +491,8 @@ export function ClientsScreen({
       </section>
 
       {selectedClientId ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/55 px-4 pb-24 backdrop-blur-sm">
-          <GlassCard className="modal-enter mx-auto max-h-[86vh] w-full max-w-md overflow-y-auto p-5">
+        <div className={modalBackdropClass}>
+          <GlassCard className={modalCardClass}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
@@ -551,11 +547,7 @@ export function ClientsScreen({
                   <Button onClick={() => openEditForm(clientDetails)} variant="secondary">
                     Изменить
                   </Button>
-                  <Button
-                    className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                    onClick={() => setClientToDelete(clientDetails)}
-                    variant="ghost"
-                  >
+                  <Button onClick={() => setClientToDelete(clientDetails)} variant="danger">
                     Удалить
                   </Button>
                   <Button onClick={() => setQuickFormMode("task")} variant="secondary">
@@ -674,8 +666,8 @@ export function ClientsScreen({
       ) : null}
 
       {formMode ? (
-        <div className="fade-enter fixed inset-0 z-50 flex items-end bg-black/55 px-4 pb-24 backdrop-blur-sm">
-          <GlassCard className="modal-enter mx-auto max-h-[82vh] w-full max-w-md overflow-y-auto p-5">
+        <div className={modalBackdropClass}>
+          <GlassCard className={modalCardClass}>
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">

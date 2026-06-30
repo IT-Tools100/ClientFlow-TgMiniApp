@@ -18,16 +18,16 @@ const navItems: Array<{ id: NavTab; label: string; mark: string }> = [
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md px-4 pb-4">
-      <div className="glass-panel grid grid-cols-6 rounded-[28px] p-2 shadow-[0_-18px_80px_rgba(34,211,238,0.08)]">
+      <div className="glass-panel grid grid-cols-6 rounded-[26px] p-1.5 shadow-[0_-18px_80px_rgba(34,211,238,0.08)]">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
 
           return (
             <button
               aria-current={isActive ? "page" : undefined}
-              className={`tap-highlight relative flex min-h-[60px] flex-col items-center justify-center rounded-2xl text-[10px] font-semibold transition active:scale-95 ${
+              className={`tap-highlight relative flex min-h-[58px] flex-col items-center justify-center rounded-2xl text-[10px] font-semibold transition active:scale-95 ${
                 isActive
-                  ? "bg-white text-slate-950 shadow-[0_12px_34px_rgba(96,165,250,0.28)]"
+                  ? "bg-white text-slate-950 shadow-[0_12px_34px_rgba(96,165,250,0.24)]"
                   : "text-app-muted hover:bg-white/10 hover:text-white"
               }`}
               key={item.id}

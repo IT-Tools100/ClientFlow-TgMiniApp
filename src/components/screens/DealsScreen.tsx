@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { fieldClass, modalBackdropClass, modalCardClass } from "@/components/ui/styles";
 import { formatDealStatus, labels } from "@/lib/labels";
 import type { DealUpsertInput } from "@/lib/services/deals";
 
@@ -33,8 +34,7 @@ interface DealsScreenProps {
   onUpdateDeal: (id: string, input: DealUpsertInput) => Promise<void>;
 }
 
-const inputClass =
-  "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
+const inputClass = fieldClass;
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
@@ -337,6 +337,7 @@ export function DealsScreen({
                             className="p-4"
                             data-testid="deal-card"
                             data-title={deal.title}
+                            interactive
                             key={deal.id}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -414,10 +415,9 @@ export function DealsScreen({
                                 Изменить
                               </Button>
                               <Button
-                                className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
                                 disabled={isSubmitting}
                                 onClick={() => setDealToDelete(deal)}
-                                variant="ghost"
+                                variant="danger"
                               >
                                 Удалить
                               </Button>
@@ -444,8 +444,8 @@ export function DealsScreen({
       </section>
 
       {formMode ? (
-        <div className="fade-enter fixed inset-0 z-50 flex items-end bg-black/55 px-4 pb-24 backdrop-blur-sm">
-          <GlassCard className="modal-enter mx-auto max-h-[82vh] w-full max-w-md overflow-y-auto p-5">
+        <div className={modalBackdropClass}>
+          <GlassCard className={modalCardClass}>
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">

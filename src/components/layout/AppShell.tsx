@@ -306,26 +306,28 @@ export function AppShell() {
 
   return (
     <main className="relative min-h-screen overflow-hidden px-4 pb-28 pt-4">
-      <div className="pointer-events-none fixed left-1/2 top-[-8rem] h-72 w-72 -translate-x-1/2 rounded-full bg-accent-blue/20 blur-3xl" />
-      <div className="pointer-events-none fixed bottom-24 left-[-8rem] h-64 w-64 rounded-full bg-accent-cyan/[0.14] blur-3xl" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent_20%,transparent_72%,rgba(34,211,238,0.035))]" />
+      <div className="pointer-events-none fixed left-1/2 top-[-8rem] h-72 w-72 -translate-x-1/2 rounded-full bg-accent-blue/[0.18] blur-3xl" />
+      <div className="pointer-events-none fixed bottom-24 left-[-8rem] h-64 w-64 rounded-full bg-accent-cyan/[0.12] blur-3xl" />
+      <div className="pointer-events-none fixed right-[-9rem] top-1/3 h-64 w-64 rounded-full bg-accent-purple/[0.10] blur-3xl" />
 
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col">
-        <header className="mb-5 flex items-center justify-between pt-2">
-          <div>
+        <header className="mb-5 flex items-center justify-between gap-3 pt-2">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent-cyan/75">
               ClientFlow
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">{title}</h1>
+            <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-white">{title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
-              className="tap-highlight min-h-11 rounded-2xl border border-white/15 bg-white/10 px-3 text-sm font-semibold text-white shadow-glow backdrop-blur-xl transition hover:bg-white/[0.14]"
+              className="tap-highlight min-h-11 rounded-2xl border border-white/15 bg-white/[0.09] px-3 text-sm font-semibold text-white shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/[0.14] active:translate-y-0"
               onClick={() => setIsSearchOpen(true)}
               type="button"
             >
               {labels.common.search}
             </button>
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-sm font-bold shadow-glow backdrop-blur-xl">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.09] text-sm font-bold shadow-glow backdrop-blur-xl">
               CF
             </div>
           </div>
@@ -407,7 +409,7 @@ export function AppShell() {
 function GlassLoadingState({ title }: { title: string }) {
   return (
     <section className="space-y-5">
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 shadow-glass">
+      <div className="glass-panel rounded-[26px] p-5 shadow-glass">
         <div className="animate-pulse space-y-4">
           <div className="h-3 w-24 rounded-full bg-white/15" />
           <div className="h-7 w-44 rounded-full bg-white/15" />
@@ -436,7 +438,7 @@ function GlassErrorState({
 }) {
   return (
     <section className="space-y-5">
-      <div className="rounded-[28px] border border-accent-red/30 bg-accent-red/[0.12] p-5 shadow-glass">
+      <div className="glass-panel rounded-[26px] border-accent-red/30 bg-accent-red/[0.12] p-5 shadow-glass">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-100/90">
           Ошибка загрузки
         </p>

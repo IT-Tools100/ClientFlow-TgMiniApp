@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { fieldClass, modalBackdropClass, modalCardClass } from "@/components/ui/styles";
 import { formatPriority, formatTaskCompletion, formatTaskDue, labels } from "@/lib/labels";
 import type { TaskUpsertInput } from "@/lib/services/tasks";
 
@@ -39,8 +40,7 @@ interface TasksScreenProps {
   onUpdateTask: (id: string, input: TaskUpsertInput) => Promise<void>;
 }
 
-const inputClass =
-  "min-h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-cyan/60 focus:ring-2 focus:ring-accent-cyan/15";
+const inputClass = fieldClass;
 
 function localDateKeyFromDate(date: Date) {
   const year = date.getFullYear();
@@ -410,6 +410,7 @@ export function TasksScreen({
                   } ${isCompleted ? "opacity-75" : ""}`}
                   data-testid="task-card"
                   data-title={task.title}
+                  interactive
                   key={task.id}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -444,11 +445,7 @@ export function TasksScreen({
                     <Button onClick={() => openEditForm(task)} variant="ghost">
                       Изменить
                     </Button>
-                    <Button
-                      className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
-                      onClick={() => setTaskToDelete(task)}
-                      variant="ghost"
-                    >
+                    <Button onClick={() => setTaskToDelete(task)} variant="danger">
                       Удалить
                     </Button>
                   </div>
@@ -467,8 +464,8 @@ export function TasksScreen({
       </section>
 
       {formMode ? (
-        <div className="fade-enter fixed inset-0 z-50 flex items-end bg-black/55 px-4 pb-24 backdrop-blur-sm">
-          <GlassCard className="modal-enter mx-auto max-h-[82vh] w-full max-w-md overflow-y-auto p-5">
+        <div className={modalBackdropClass}>
+          <GlassCard className={modalCardClass}>
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">

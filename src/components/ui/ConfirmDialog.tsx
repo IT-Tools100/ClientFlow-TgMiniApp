@@ -18,7 +18,7 @@ export function ConfirmDialog({
   title
 }: ConfirmDialogProps) {
   return (
-    <div className="fade-enter fixed inset-0 z-[60] flex items-end bg-black/60 px-4 pb-24 backdrop-blur-sm">
+    <div className="fade-enter fixed inset-0 z-[60] flex items-end bg-black/65 px-4 pb-24 backdrop-blur-md">
       <GlassCard className="modal-enter mx-auto w-full max-w-md p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-red/90">
           Подтвердите действие
@@ -29,11 +29,7 @@ export function ConfirmDialog({
           <Button onClick={onCancel} variant="ghost">
             {labels.common.cancel}
           </Button>
-          <Button
-            className="border border-accent-red/35 bg-accent-red/[0.14] text-rose-50 hover:bg-accent-red/[0.2]"
-            onClick={onConfirm}
-            variant="ghost"
-          >
+          <Button onClick={onConfirm} variant="danger">
             {confirmLabel}
           </Button>
         </div>
