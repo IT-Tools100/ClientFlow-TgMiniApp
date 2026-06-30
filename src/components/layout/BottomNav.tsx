@@ -1,4 +1,5 @@
 import type { NavTab } from "@/types";
+import { labels } from "@/lib/labels";
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -6,12 +7,12 @@ interface BottomNavProps {
 }
 
 const navItems: Array<{ id: NavTab; label: string; mark: string }> = [
-  { id: "dashboard", label: "Home", mark: "01" },
-  { id: "clients", label: "Clients", mark: "02" },
-  { id: "tasks", label: "Tasks", mark: "03" },
-  { id: "deals", label: "Deals", mark: "04" },
-  { id: "analytics", label: "Stats", mark: "05" },
-  { id: "profile", label: "Profile", mark: "06" }
+  { id: "dashboard", label: labels.nav.dashboard, mark: "01" },
+  { id: "clients", label: labels.nav.clients, mark: "02" },
+  { id: "tasks", label: labels.nav.tasks, mark: "03" },
+  { id: "deals", label: labels.nav.deals, mark: "04" },
+  { id: "analytics", label: labels.nav.analytics, mark: "05" },
+  { id: "profile", label: labels.nav.profile, mark: "06" }
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {

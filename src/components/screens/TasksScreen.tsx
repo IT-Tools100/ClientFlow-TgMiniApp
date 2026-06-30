@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { formatPriority, formatTaskCompletion, formatTaskDue, labels } from "@/lib/labels";
 import type { TaskUpsertInput } from "@/lib/services/tasks";
 
 const TASK_PRIORITIES: TaskPriority[] = ["Low", "Medium", "High"];
@@ -122,13 +123,13 @@ function getStatusFromCompletionAndDueState(
 function getTaskCompletionBadge(completion: TaskCompletionState) {
   if (completion === "Done") {
     return {
-      label: "Done",
+      label: formatTaskCompletion("Done"),
       tone: getStatusTone("Done")
     };
   }
 
   return {
-    label: "Active",
+    label: formatTaskCompletion("Active"),
     tone: getStatusTone("Today")
   };
 }
@@ -136,20 +137,20 @@ function getTaskCompletionBadge(completion: TaskCompletionState) {
 function getTaskDueBadge(dueState: TaskDueState) {
   if (dueState === "Overdue") {
     return {
-      label: "Overdue",
+      label: formatTaskDue("Overdue"),
       tone: getStatusTone("Overdue")
     };
   }
 
   if (dueState === "Today") {
     return {
-      label: "Today",
+      label: formatTaskDue("Today"),
       tone: getStatusTone("Today")
     };
   }
 
   return {
-    label: "Upcoming",
+    label: formatTaskDue("Upcoming"),
     tone: getStatusTone("Upcoming")
   };
 }
@@ -331,23 +332,23 @@ export function TasksScreen({
         <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-accent-purple/20 blur-2xl" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-app-muted">Task control</p>
+            <p className="text-sm font-medium text-app-muted">Контроль задач</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">{summary.today}</p>
             <p className="mt-1 text-sm text-slate-300">
-              Due today · {summary.overdue} overdue
+              Сегодня · {summary.overdue} просрочено
             </p>
           </div>
-          <Button onClick={openAddForm}>Add Task</Button>
+          <Button onClick={openAddForm}>Добавить задачу</Button>
         </div>
       </GlassCard>
 
       <div className="grid grid-cols-2 gap-3">
-        <TaskMetric label="Total tasks" value={summary.total} />
-        <TaskMetric label="Active tasks" value={summary.active} />
-        <TaskMetric label="Done" value={summary.done} />
-        <TaskMetric label="Overdue" value={summary.overdue} tone="red" />
-        <TaskMetric label="Today" value={summary.today} tone="cyan" />
-        <TaskMetric className="col-span-2" label="Upcoming" value={summary.upcoming} />
+        <TaskMetric label="Всего задач" value={summary.total} />
+        <TaskMetric label="Активные" value={summary.active} />
+        <TaskMetric label="Выполнены" value={summary.done} />
+        <TaskMetric label="Просрочены" value={summary.overdue} tone="red" />
+        <TaskMetric label="Сегодня" value={summary.today} tone="cyan" />
+        <TaskMetric className="col-span-2" label="Предстоящие" value={summary.upcoming} />
       </div>
 
       <GlassCard className="p-4">
@@ -355,7 +356,7 @@ export function TasksScreen({
           <input
             className={inputClass}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search title, client, status, priority"
+            placeholder="Поиск по названию, клиенту, статусу, приоритету"
             type="search"
             value={query}
           />
@@ -374,7 +375,7 @@ export function TasksScreen({
             onChange={(event) => setClientFilter(event.target.value)}
             value={clientFilter}
           >
-            <option value="All">All clients</option>
+            <option value="All">Все клиенты</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.name}
@@ -390,7 +391,7 @@ export function TasksScreen({
       </GlassCard>
 
       <section>
-        <SectionHeader action={`${filteredTasks.length} shown`} eyebrow="Tasks" title="Task list" />
+        <SectionHeader action={`${filteredTasks.length} показано`} eyebrow="Задачи" title="Список задач" />
         <div className="space-y-3">
           {filteredTasks.length > 0 ? (
             filteredTasks.map((task) => {
@@ -400,7 +401,7 @@ export function TasksScreen({
               const isOverdue = completionState === "Active" && dueState === "Overdue";
               const completionBadge = getTaskCompletionBadge(completionState);
               const dueBadge = getTaskDueBadge(dueState);
-              const clientName = clientNameById.get(task.clientId) ?? "Unknown client";
+              const clientName = clientNameById.get(task.clientId) ?? labels.common.unknownClient;
 
               return (
                 <GlassCard
@@ -429,8 +430,8 @@ export function TasksScreen({
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <InfoPill label="Due" value={task.dueDate || "No date"} />
-                    <InfoPill label="Priority" value={task.priority} />
+                    <InfoPill label="Срок" value={task.dueDate || "Без даты"} />
+                    <InfoPill label="Приоритет" value={formatPriority(task.priority)} />
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     <Button
@@ -438,17 +439,17 @@ export function TasksScreen({
                       onClick={() => void toggleComplete(task)}
                       variant="secondary"
                     >
-                      {isCompleted ? "Reopen" : "Complete"}
+                      {isCompleted ? "Вернуть" : "Завершить"}
                     </Button>
                     <Button onClick={() => openEditForm(task)} variant="ghost">
-                      Edit
+                      Изменить
                     </Button>
                     <Button
                       className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
                       onClick={() => setTaskToDelete(task)}
                       variant="ghost"
                     >
-                      Delete
+                      Удалить
                     </Button>
                   </div>
                 </GlassCard>
@@ -456,7 +457,7 @@ export function TasksScreen({
             })
           ) : (
             <EmptyState
-              actionLabel="Add Task"
+              actionLabel="Добавить задачу"
               description={getEmptyStateDescription(tasks.length, completionFilter, dueFilter)}
               onAction={openAddForm}
               title={getEmptyStateTitle(tasks.length, completionFilter, dueFilter)}
@@ -471,24 +472,24 @@ export function TasksScreen({
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-                  {formMode === "add" ? "New task" : "Edit task"}
+                  {formMode === "add" ? "Новая задача" : "Редактирование задачи"}
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-white">
-                  {formMode === "add" ? "Add Task" : "Update Task"}
+                  {formMode === "add" ? "Добавить задачу" : "Обновить задачу"}
                 </h2>
               </div>
               <button
-                aria-label="Close task form"
+                aria-label="Закрыть форму задачи"
                 className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
                 onClick={closeForm}
                 type="button"
               >
-                Close
+                Закрыть
               </button>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <Field label="Client">
+              <Field label="Клиент">
                 <select
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, clientId: event.target.value })}
@@ -502,24 +503,24 @@ export function TasksScreen({
                   ))}
                 </select>
               </Field>
-              <Field label="Title">
+              <Field label="Название">
                 <input
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, title: event.target.value })}
-                  placeholder="Follow up with client"
+                  placeholder="Связаться с клиентом"
                   required
                   value={form.title}
                 />
               </Field>
-              <Field label="Description">
+              <Field label="Описание">
                 <textarea
                   className={`${inputClass} min-h-24 resize-none py-3`}
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  placeholder="What needs to be done?"
+                  placeholder="Что нужно сделать?"
                   value={form.description}
                 />
               </Field>
-              <Field label="Due date">
+              <Field label="Срок">
                 <input
                   className={inputClass}
                   onChange={(event) => updateFormDueDate(event.target.value)}
@@ -530,7 +531,7 @@ export function TasksScreen({
               </Field>
               <DueStatusPreview dueDate={form.dueDate} />
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Completion">
+                <Field label="Выполнение">
                   <select
                     className={inputClass}
                     onChange={(event) =>
@@ -543,12 +544,12 @@ export function TasksScreen({
                   >
                     {COMPLETION_STATES.map((completion) => (
                       <option key={completion} value={completion}>
-                        {completion}
+                        {formatTaskCompletion(completion)}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Priority">
+                <Field label="Приоритет">
                   <select
                     className={inputClass}
                     onChange={(event) =>
@@ -558,7 +559,7 @@ export function TasksScreen({
                   >
                     {TASK_PRIORITIES.map((priority) => (
                       <option key={priority} value={priority}>
-                        {priority}
+                        {formatPriority(priority)}
                       </option>
                     ))}
                   </select>
@@ -566,10 +567,10 @@ export function TasksScreen({
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button disabled={isSubmitting} onClick={closeForm} variant="ghost">
-                  Cancel
+                  Отмена
                 </Button>
                 <Button disabled={!form.clientId || isSubmitting} type="submit">
-                  {isSubmitting ? "Saving..." : formMode === "add" ? "Create" : "Save"}
+                  {isSubmitting ? "Сохранение..." : formMode === "add" ? "Создать" : "Сохранить"}
                 </Button>
               </div>
             </form>
@@ -579,10 +580,10 @@ export function TasksScreen({
 
       {taskToDelete ? (
         <ConfirmDialog
-          body={`Delete "${taskToDelete.title}"? This removes it from Supabase.`}
+          body={`Удалить "${taskToDelete.title}"? Запись будет удалена из Supabase.`}
           onCancel={() => setTaskToDelete(null)}
           onConfirm={() => void confirmDeleteTask(taskToDelete.id)}
-          title="Delete task"
+          title="Удалить задачу"
         />
       ) : null}
     </section>
@@ -614,7 +615,7 @@ function FilterRow({
             onClick={() => onChange(item)}
             type="button"
           >
-            {item}
+            {formatTaskFilterLabel(item)}
           </button>
         );
       })}
@@ -636,10 +637,35 @@ function DueStatusPreview({ dueDate }: { dueDate: string }) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-3 py-3">
-      <p className="mb-2 text-xs font-semibold text-app-muted">Due status</p>
+      <p className="mb-2 text-xs font-semibold text-app-muted">Статус срока</p>
       <Badge tone={badge.tone}>{badge.label}</Badge>
+      <p className="mt-2 text-xs text-app-muted">Рассчитывается по сроку</p>
     </div>
   );
+}
+
+function formatTaskFilterLabel(value: string) {
+  if (value === "All") {
+    return "Все";
+  }
+
+  if (value === "All due") {
+    return "Все сроки";
+  }
+
+  if (value === "Active" || value === "Done") {
+    return formatTaskCompletion(value);
+  }
+
+  if (value === "Overdue" || value === "Today" || value === "Upcoming") {
+    return formatTaskDue(value);
+  }
+
+  if (value === "Low" || value === "Medium" || value === "High") {
+    return formatPriority(value);
+  }
+
+  return value;
 }
 
 function TaskMetric({
@@ -696,30 +722,30 @@ function getEmptyStateTitle(
   dueFilter: DueFilter
 ) {
   if (totalTasks === 0) {
-    return "No tasks yet";
+    return "Задач пока нет";
   }
 
   if (completionFilter === "Active" && dueFilter === "All due") {
-    return "No active tasks";
+    return "Активных задач нет";
   }
 
   if (completionFilter === "Done") {
-    return "No done tasks";
+    return "Выполненных задач нет";
   }
 
   if (dueFilter === "Overdue") {
-    return "No overdue tasks";
+    return "Просроченных задач нет";
   }
 
   if (dueFilter === "Today") {
-    return "No today tasks";
+    return "Задач на сегодня нет";
   }
 
   if (dueFilter === "Upcoming") {
-    return "No upcoming tasks";
+    return "Предстоящих задач нет";
   }
 
-  return "No task results";
+  return "Задачи не найдены";
 }
 
 function getEmptyStateDescription(
@@ -728,28 +754,28 @@ function getEmptyStateDescription(
   dueFilter: DueFilter
 ) {
   if (totalTasks === 0) {
-    return "Create the first follow-up, deadline, or delivery task for a client.";
+    return "Создайте первую задачу для клиента: follow-up, дедлайн или доставку результата.";
   }
 
   if (completionFilter === "Active" && dueFilter === "All due") {
-    return "There are no active tasks under the current search, client, or priority filter.";
+    return "По текущему поиску, клиенту или приоритету активных задач нет.";
   }
 
   if (completionFilter === "Done") {
-    return "There are no completed tasks under the current filters.";
+    return "По текущим фильтрам выполненных задач нет.";
   }
 
   if (dueFilter === "Overdue") {
-    return "There are no active overdue tasks under the current filters.";
+    return "По текущим фильтрам активных просроченных задач нет.";
   }
 
   if (dueFilter === "Today") {
-    return "There are no active tasks due today under the current filters.";
+    return "По текущим фильтрам задач на сегодня нет.";
   }
 
   if (dueFilter === "Upcoming") {
-    return "There are no active upcoming tasks under the current filters.";
+    return "По текущим фильтрам предстоящих задач нет.";
   }
 
-  return "No tasks match the current search, completion, due status, client, or priority filter.";
+  return "Поиск, выполнение, срок, клиент или приоритет не дали результатов.";
 }

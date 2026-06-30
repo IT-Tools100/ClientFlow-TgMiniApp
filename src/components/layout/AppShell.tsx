@@ -10,6 +10,7 @@ import { DealsScreen } from "@/components/screens/DealsScreen";
 import { ProfileScreen } from "@/components/screens/ProfileScreen";
 import { TasksScreen } from "@/components/screens/TasksScreen";
 import { getOrCreateProfile } from "@/lib/services/profiles";
+import { labels } from "@/lib/labels";
 import { createActivity, getActivities } from "@/lib/services/activities";
 import {
   createClient,
@@ -30,12 +31,12 @@ import { getTelegramIdentity, type NormalizedTelegramUser } from "@/lib/telegram
 import type { Activity, Client, Deal, NavTab, Profile, Task } from "@/types";
 
 const screenMap: Record<NavTab, string> = {
-  dashboard: "Dashboard",
-  clients: "Clients",
-  tasks: "Tasks",
-  deals: "Deals",
-  analytics: "Analytics",
-  profile: "Profile"
+  dashboard: labels.nav.dashboard,
+  clients: labels.nav.clients,
+  tasks: labels.nav.tasks,
+  deals: labels.nav.deals,
+  analytics: labels.nav.analytics,
+  profile: labels.nav.profile
 };
 
 export function AppShell() {
@@ -91,7 +92,7 @@ export function AppShell() {
         }
 
         console.error("Dashboard load error", error);
-        setLoadError(error instanceof Error ? error.message : "Failed to load Supabase data");
+        setLoadError(error instanceof Error ? error.message : "Не удалось загрузить данные Supabase");
       } finally {
         if (alive) {
           setIsLoading(false);
@@ -142,12 +143,12 @@ export function AppShell() {
       setClients((current) => [created, ...current]);
       const activity = await createActivity(profileId, {
         clientId: created.id,
-        description: `Created client ${created.name}`,
+        description: `Создан клиент ${created.name}`,
         type: "client"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to create client");
+      setLoadError(error instanceof Error ? error.message : "Не удалось создать клиента");
       throw error;
     }
   }
@@ -159,12 +160,12 @@ export function AppShell() {
       setClients((current) => current.map((client) => (client.id === id ? updated : client)));
       const activity = await createActivity(profileId, {
         clientId: updated.id,
-        description: `Updated client ${updated.name}`,
+        description: `Обновлен клиент ${updated.name}`,
         type: "client"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to update client");
+      setLoadError(error instanceof Error ? error.message : "Не удалось обновить клиента");
       throw error;
     }
   }
@@ -184,13 +185,13 @@ export function AppShell() {
       if (existingClient) {
         const activity = await createActivity(profileId, {
           clientId: null,
-          description: `Deleted client ${existingClient.name}`,
+          description: `Удален клиент ${existingClient.name}`,
           type: "client"
         });
         setActivities((current) => [activity, ...current]);
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to delete client");
+      setLoadError(error instanceof Error ? error.message : "Не удалось удалить клиента");
       throw error;
     }
   }
@@ -202,12 +203,12 @@ export function AppShell() {
       setTasks((current) => [created, ...current]);
       const activity = await createActivity(profileId, {
         clientId: created.clientId,
-        description: `Created task ${created.title}`,
+        description: `Создана задача ${created.title}`,
         type: "task"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to create task");
+      setLoadError(error instanceof Error ? error.message : "Не удалось создать задачу");
       throw error;
     }
   }
@@ -219,12 +220,12 @@ export function AppShell() {
       setTasks((current) => current.map((task) => (task.id === id ? updated : task)));
       const activity = await createActivity(profileId, {
         clientId: updated.clientId,
-        description: `Updated task ${updated.title}`,
+        description: `Обновлена задача ${updated.title}`,
         type: "task"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to update task");
+      setLoadError(error instanceof Error ? error.message : "Не удалось обновить задачу");
       throw error;
     }
   }
@@ -238,13 +239,13 @@ export function AppShell() {
       if (existingTask) {
         const activity = await createActivity(profileId, {
           clientId: getExistingClientId(existingTask.clientId),
-          description: `Deleted task ${existingTask.title}`,
+          description: `Удалена задача ${existingTask.title}`,
           type: "task"
         });
         setActivities((current) => [activity, ...current]);
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to delete task");
+      setLoadError(error instanceof Error ? error.message : "Не удалось удалить задачу");
       throw error;
     }
   }
@@ -256,12 +257,12 @@ export function AppShell() {
       setDeals((current) => [created, ...current]);
       const activity = await createActivity(profileId, {
         clientId: created.clientId,
-        description: `Created deal ${created.title}`,
+        description: `Создана сделка ${created.title}`,
         type: "deal"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to create deal");
+      setLoadError(error instanceof Error ? error.message : "Не удалось создать сделку");
       throw error;
     }
   }
@@ -273,12 +274,12 @@ export function AppShell() {
       setDeals((current) => current.map((deal) => (deal.id === id ? updated : deal)));
       const activity = await createActivity(profileId, {
         clientId: updated.clientId,
-        description: `Updated deal ${updated.title}`,
+        description: `Обновлена сделка ${updated.title}`,
         type: "deal"
       });
       setActivities((current) => [activity, ...current]);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to update deal");
+      setLoadError(error instanceof Error ? error.message : "Не удалось обновить сделку");
       throw error;
     }
   }
@@ -292,13 +293,13 @@ export function AppShell() {
       if (existingDeal) {
         const activity = await createActivity(profileId, {
           clientId: getExistingClientId(existingDeal.clientId),
-          description: `Deleted deal ${existingDeal.title}`,
+          description: `Удалена сделка ${existingDeal.title}`,
           type: "deal"
         });
         setActivities((current) => [activity, ...current]);
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to delete deal");
+      setLoadError(error instanceof Error ? error.message : "Не удалось удалить сделку");
       throw error;
     }
   }
@@ -322,7 +323,7 @@ export function AppShell() {
               onClick={() => setIsSearchOpen(true)}
               type="button"
             >
-              Search
+              {labels.common.search}
             </button>
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-sm font-bold shadow-glow backdrop-blur-xl">
               CF
@@ -377,7 +378,14 @@ export function AppShell() {
           <AnalyticsScreen activities={activities} clients={clients} deals={deals} tasks={tasks} />
         ) : null}
         {canRenderContent && activeTab === "profile" ? (
-          <ProfileScreen currentProfile={currentProfile} telegramUser={telegramUser} />
+          <ProfileScreen
+            activities={activities}
+            clients={clients}
+            currentProfile={currentProfile}
+            deals={deals}
+            tasks={tasks}
+            telegramUser={telegramUser}
+          />
         ) : null}
       </div>
 
@@ -410,7 +418,9 @@ function GlassLoadingState({ title }: { title: string }) {
           </div>
         </div>
       </div>
-      <p className="px-1 text-xs uppercase tracking-[0.18em] text-app-muted">Loading {title}</p>
+      <p className="px-1 text-xs uppercase tracking-[0.18em] text-app-muted">
+        {labels.common.loading}: {title}
+      </p>
     </section>
   );
 }
@@ -428,9 +438,9 @@ function GlassErrorState({
     <section className="space-y-5">
       <div className="rounded-[28px] border border-accent-red/30 bg-accent-red/[0.12] p-5 shadow-glass">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-100/90">
-          Load error
+          Ошибка загрузки
         </p>
-        <h2 className="mt-2 text-xl font-bold text-white">{title} could not load</h2>
+        <h2 className="mt-2 text-xl font-bold text-white">{title}: не удалось загрузить</h2>
         <p className="mt-2 text-sm leading-6 text-rose-100/85">{errorMessage}</p>
         <div className="mt-5">
           <button
@@ -438,7 +448,7 @@ function GlassErrorState({
             onClick={onRetry}
             type="button"
           >
-            Retry
+            {labels.common.retry}
           </button>
         </div>
       </div>

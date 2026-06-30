@@ -5,6 +5,14 @@ import type { Activity, Client, Deal, NavTab, Task } from "@/types";
 import { Badge, getStatusTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
+import {
+  formatActivityType,
+  formatClientStatus,
+  formatDealStatus,
+  formatTaskCompletion,
+  formatTaskDue,
+  labels
+} from "@/lib/labels";
 
 interface UniversalSearchModalProps {
   activities: Activity[];
@@ -152,7 +160,7 @@ export function UniversalSearchModal({
       ])
     );
     const taskResults = tasks.filter((task) => {
-      const clientName = clientNameById.get(task.clientId) ?? "Unknown client";
+      const clientName = clientNameById.get(task.clientId) ?? labels.common.unknownClient;
       const completion = getTaskCompletionState(task);
       const dueState = getTaskDueState(task);
 
@@ -167,7 +175,7 @@ export function UniversalSearchModal({
       ]);
     });
     const dealResults = deals.filter((deal) => {
-      const clientName = clientNameById.get(deal.clientId) ?? "Unknown client";
+      const clientName = clientNameById.get(deal.clientId) ?? labels.common.unknownClient;
 
       return includesQuery(normalizedQuery, [
         deal.title,
@@ -180,7 +188,7 @@ export function UniversalSearchModal({
     });
     const activityResults = activities.filter((activity) => {
       const clientName = activity.clientId
-        ? clientNameById.get(activity.clientId) ?? "Unknown client"
+        ? clientNameById.get(activity.clientId) ?? labels.common.unknownClient
         : "";
 
       return includesQuery(normalizedQuery, [
@@ -228,24 +236,24 @@ export function UniversalSearchModal({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-              Universal search
+              Единый поиск
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-white">Search CRM</h2>
+            <h2 className="mt-1 text-2xl font-bold text-white">Поиск по CRM</h2>
           </div>
           <button
-            aria-label="Close search"
+            aria-label="Закрыть поиск"
             className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
             onClick={onClose}
             type="button"
           >
-            Close
+            {labels.common.close}
           </button>
         </div>
 
         <input
           className={inputClass}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search clients, tasks, deals, activity"
+          placeholder="Клиенты, задачи, сделки, действия"
           ref={inputRef}
           value={query}
         />
@@ -253,20 +261,20 @@ export function UniversalSearchModal({
         <div className="mt-5 space-y-5">
           {!hasCrmData ? (
             <EmptyState
-              description="Create clients, tasks, deals, or activities before using universal search."
-              title="No CRM data yet"
+              description="Создайте клиентов, задачи, сделки или действия, чтобы пользоваться единым поиском."
+              title="В CRM пока нет данных"
             />
           ) : !hasQuery ? (
             <GlassCard className="p-4">
-              <p className="text-sm font-medium text-white">Start typing to search</p>
+              <p className="text-sm font-medium text-white">Введите запрос</p>
               <p className="mt-1 text-sm leading-6 text-app-muted">
-                Search runs locally across the loaded CRM data.
+                Поиск работает локально по уже загруженным данным CRM.
               </p>
             </GlassCard>
           ) : hasResults ? (
             <>
               {results.clients.length > 0 ? (
-                <ResultGroup title="Clients">
+                <ResultGroup title="Клиенты">
                   {results.clients.map((client) => (
                     <button
                       className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
@@ -280,10 +288,12 @@ export function UniversalSearchModal({
                             {client.name}
                           </p>
                           <p className="mt-1 truncate text-xs text-app-muted">
-                            {client.contact || client.source || "No contact"}
+                            {client.contact || client.source || "Контакт не указан"}
                           </p>
                         </div>
-                        <Badge tone={getStatusTone(client.status)}>{client.status}</Badge>
+                        <Badge tone={getStatusTone(client.status)}>
+                          {formatClientStatus(client.status)}
+                        </Badge>
                       </div>
                     </button>
                   ))}
@@ -291,7 +301,7 @@ export function UniversalSearchModal({
               ) : null}
 
               {results.tasks.length > 0 ? (
-                <ResultGroup title="Tasks">
+                <ResultGroup title="Задачи">
                   {results.tasks.map((task) => {
                     const completion = getTaskCompletionState(task);
                     const dueState = getTaskDueState(task);
@@ -309,14 +319,14 @@ export function UniversalSearchModal({
                               {task.title}
                             </p>
                             <p className="mt-1 truncate text-xs text-app-muted">
-                              {clientNameById.get(task.clientId) ?? "Unknown client"}
+                              {clientNameById.get(task.clientId) ?? labels.common.unknownClient}
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Badge tone={getStatusTone(completion === "Done" ? "Done" : "Upcoming")}>
-                              {completion}
+                              {formatTaskCompletion(completion)}
                             </Badge>
-                            <Badge tone={getStatusTone(dueState)}>{dueState}</Badge>
+                            <Badge tone={getStatusTone(dueState)}>{formatTaskDue(dueState)}</Badge>
                           </div>
                         </div>
                       </button>
@@ -326,7 +336,7 @@ export function UniversalSearchModal({
               ) : null}
 
               {results.deals.length > 0 ? (
-                <ResultGroup title="Deals">
+                <ResultGroup title="Сделки">
                   {results.deals.map((deal) => (
                     <button
                       className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
@@ -338,11 +348,13 @@ export function UniversalSearchModal({
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-white">{deal.title}</p>
                           <p className="mt-1 truncate text-xs text-app-muted">
-                            {clientNameById.get(deal.clientId) ?? "Unknown client"}
+                            {clientNameById.get(deal.clientId) ?? labels.common.unknownClient}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                          <Badge tone={getStatusTone(deal.status)}>
+                            {formatDealStatus(deal.status)}
+                          </Badge>
                           <p className="mt-2 text-xs font-semibold text-white">
                             {moneyFormatter.format(deal.amount)}
                           </p>
@@ -354,7 +366,7 @@ export function UniversalSearchModal({
               ) : null}
 
               {results.activities.length > 0 ? (
-                <ResultGroup title="Activities">
+                <ResultGroup title="Действия">
                   {results.activities.map((activity) => (
                     <button
                       className="tap-highlight w-full rounded-2xl bg-white/[0.06] px-3 py-3 text-left transition hover:bg-white/[0.1]"
@@ -365,7 +377,7 @@ export function UniversalSearchModal({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold capitalize text-white">
-                            {activity.type}
+                            {formatActivityType(activity.type)}
                           </p>
                           <p className="mt-1 line-clamp-2 text-xs text-app-muted">
                             {activity.description}
@@ -380,8 +392,8 @@ export function UniversalSearchModal({
             </>
           ) : (
             <EmptyState
-              description="No clients, tasks, deals, or activity match this query."
-              title="Nothing found"
+              description="По этому запросу не найдены клиенты, задачи, сделки или действия."
+              title="Ничего не найдено"
             />
           )}
         </div>

@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { formatActivityType, formatDealStatus } from "@/lib/labels";
 
 interface AnalyticsScreenProps {
   activities: Activity[];
@@ -110,75 +111,75 @@ export function AnalyticsScreen({ activities, clients, deals, tasks }: Analytics
         <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-accent-cyan/20 blur-2xl" />
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-app-muted">Business analytics</p>
+            <p className="text-sm font-medium text-app-muted">Бизнес-аналитика</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">
               {moneyFormatter.format(pipelineValue)}
             </p>
-            <p className="mt-1 text-sm text-slate-300">Active pipeline value</p>
+            <p className="mt-1 text-sm text-slate-300">Активная воронка</p>
           </div>
-          <Badge tone="cyan">Live stats</Badge>
+          <Badge tone="cyan">Живая статистика</Badge>
         </div>
         {hasAnyAnalytics ? (
           <div className="mt-5 grid grid-cols-3 gap-2">
-            <MiniMetric label="Clients" value={clients.length} />
-            <MiniMetric label="Deals" value={deals.length} />
-            <MiniMetric label="Tasks" value={tasks.length} />
+            <MiniMetric label="Клиенты" value={clients.length} />
+            <MiniMetric label="Сделки" value={deals.length} />
+            <MiniMetric label="Задачи" value={tasks.length} />
           </div>
         ) : (
           <p className="mt-4 text-sm leading-6 text-app-muted">
-            Add clients, deals, tasks, or activities to start building analytics.
+            Добавьте клиентов, сделки, задачи или действия, чтобы сформировать аналитику.
           </p>
         )}
       </GlassCard>
 
       <section>
-        <SectionHeader eyebrow="Business" title="Business Overview" />
+        <SectionHeader eyebrow="Бизнес" title="Обзор бизнеса" />
         <div className="grid grid-cols-2 gap-3">
           <StatCard
-            detail="All client rows"
-            label="Total Clients"
+            detail="Все клиенты"
+            label="Клиенты"
             tone="blue"
             value={String(clients.length)}
           />
           <StatCard
-            detail="All deal rows"
-            label="Total Deals"
+            detail="Все сделки"
+            label="Сделки"
             tone="purple"
             value={String(deals.length)}
           />
           <StatCard
-            detail="New, negotiation, waiting"
-            label="Active Deals"
+            detail="Новые, переговоры, ожидание оплаты"
+            label="Активные сделки"
             tone="purple"
             value={String(activeDeals.length)}
           />
           <StatCard
-            detail="Active deal amount"
-            label="Pipeline Value"
+            detail="Сумма активных сделок"
+            label="Воронка"
             tone="green"
             value={moneyFormatter.format(pipelineValue)}
           />
           <StatCard
-            detail="Paid deals only"
-            label="Paid Revenue"
+            detail="Только оплаченные сделки"
+            label="Оплачено"
             tone="green"
             value={moneyFormatter.format(paidRevenue)}
           />
           <StatCard
-            detail="All task rows"
-            label="Total Tasks"
+            detail="Все задачи"
+            label="Задачи"
             tone="cyan"
             value={String(tasks.length)}
           />
           <StatCard
-            detail="Done status"
-            label="Completed Tasks"
+            detail="Статус выполнена"
+            label="Выполненные"
             tone="green"
             value={String(doneTasks.length)}
           />
           <StatCard
-            detail="Not Done"
-            label="Active Tasks"
+            detail="Не выполнены"
+            label="Активные задачи"
             tone="cyan"
             value={String(activeTasks.length)}
           />
@@ -187,13 +188,13 @@ export function AnalyticsScreen({ activities, clients, deals, tasks }: Analytics
 
       {!hasAnyAnalytics ? (
         <EmptyState
-          description="Analytics will appear after the CRM has clients, deals, tasks, or activity rows."
-          title="No analytics data yet"
+          description="Аналитика появится после создания клиентов, сделок, задач или действий."
+          title="Данных для аналитики пока нет"
         />
       ) : null}
 
       <section>
-        <SectionHeader action={`${deals.length} total`} eyebrow="Deals" title="Deals Analytics" />
+        <SectionHeader action={`${deals.length} всего`} eyebrow="Сделки" title="Аналитика сделок" />
         {deals.length > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-3">
@@ -207,7 +208,7 @@ export function AnalyticsScreen({ activities, clients, deals, tasks }: Analytics
                     amount={moneyFormatter.format(stageAmount)}
                     count={stageDeals.length}
                     key={status}
-                    label={status}
+                    label={formatDealStatus(status)}
                     percent={stageShare}
                     tone={getStatusTone(status)}
                   />
@@ -217,116 +218,116 @@ export function AnalyticsScreen({ activities, clients, deals, tasks }: Analytics
           </GlassCard>
         ) : (
           <EmptyState
-            description="Create deals to see stage count, value, and share breakdown."
-            title="No deals yet"
+            description="Создайте сделки, чтобы увидеть количество, сумму и долю по этапам."
+            title="Сделок пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader eyebrow="Revenue" title="Revenue Analytics" />
+        <SectionHeader eyebrow="Выручка" title="Аналитика выручки" />
         {deals.length > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-3">
-              <ValueRow label="Pipeline Value" value={moneyFormatter.format(pipelineValue)} />
-              <ValueRow label="Paid Revenue" value={moneyFormatter.format(paidRevenue)} />
-              <ValueRow label="Lost Revenue" value={moneyFormatter.format(lostRevenue)} />
+              <ValueRow label="Воронка" value={moneyFormatter.format(pipelineValue)} />
+              <ValueRow label="Оплачено" value={moneyFormatter.format(paidRevenue)} />
+              <ValueRow label="Потеряно" value={moneyFormatter.format(lostRevenue)} />
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            description="Revenue analytics will appear after deals are created."
-            title="No revenue data"
+            description="Аналитика выручки появится после создания сделок."
+            title="Нет данных по выручке"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader action={`${tasks.length} total`} eyebrow="Tasks" title="Tasks Analytics" />
+        <SectionHeader action={`${tasks.length} всего`} eyebrow="Задачи" title="Аналитика задач" />
         {tasks.length > 0 ? (
           <GlassCard className="p-4">
             <div className="grid grid-cols-2 gap-2">
-              <MiniMetric label="Total" value={tasks.length} />
-              <MiniMetric label="Active" value={activeTasks.length} />
-              <MiniMetric label="Done" value={doneTasks.length} />
-              <MiniMetric label="Overdue" tone="red" value={overdueTasks.length} />
-              <MiniMetric label="Today" tone="cyan" value={todayTasks.length} />
-              <MiniMetric label="Upcoming" value={upcomingTasks.length} />
+              <MiniMetric label="Всего" value={tasks.length} />
+              <MiniMetric label="Активные" value={activeTasks.length} />
+              <MiniMetric label="Выполнены" value={doneTasks.length} />
+              <MiniMetric label="Просрочены" tone="red" value={overdueTasks.length} />
+              <MiniMetric label="Сегодня" tone="cyan" value={todayTasks.length} />
+              <MiniMetric label="Предстоящие" value={upcomingTasks.length} />
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            description="Create tasks to see completion, overdue, today, and upcoming analytics."
-            title="No tasks yet"
+            description="Создайте задачи, чтобы увидеть выполнение, просрочку, сегодня и предстоящие."
+            title="Задач пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader eyebrow="Clients" title="Clients Analytics" />
+        <SectionHeader eyebrow="Клиенты" title="Аналитика клиентов" />
         {clients.length > 0 ? (
           <GlassCard className="p-4">
             <div className="grid grid-cols-2 gap-2">
-              <MiniMetric label="Total Clients" value={clients.length} />
-              <MiniMetric label="With Deals" value={clientsWithDeals.length} />
-              <MiniMetric label="Without Deals" value={clients.length - clientsWithDeals.length} />
-              <MiniMetric label="With Tasks" value={clientsWithTasks.length} />
+              <MiniMetric label="Всего клиентов" value={clients.length} />
+              <MiniMetric label="Со сделками" value={clientsWithDeals.length} />
+              <MiniMetric label="Без сделок" value={clients.length - clientsWithDeals.length} />
+              <MiniMetric label="С задачами" value={clientsWithTasks.length} />
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            description="Add clients to analyze client coverage across deals and tasks."
-            title="No clients yet"
+            description="Добавьте клиентов, чтобы анализировать покрытие сделками и задачами."
+            title="Клиентов пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader action={`${activities.length} total`} eyebrow="Activity" title="Activity Analytics" />
+        <SectionHeader action={`${activities.length} всего`} eyebrow="Активность" title="Аналитика активности" />
         {activities.length > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-3">
               {ACTIVITY_TYPES.map((type) => {
                 const count = activities.filter((activity) => activity.type === type).length;
 
-                return <ValueRow key={type} label={`${type} activities`} value={String(count)} />;
+                return <ValueRow key={type} label={`${formatActivityType(type)}: действия`} value={String(count)} />;
               })}
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            description="Activity analytics will appear after client, task, or deal actions."
-            title="No activity yet"
+            description="Аналитика активности появится после действий с клиентами, задачами или сделками."
+            title="Действий пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader eyebrow="Completion" title="Completion Metrics" />
+        <SectionHeader eyebrow="Выполнение" title="Показатели выполнения" />
         {tasks.length > 0 || closedDealsCount > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-5">
               <MetricRow
-                emptyLabel="No tasks yet"
-                label="Task Completion Rate"
+                emptyLabel="Задач пока нет"
+                label="Выполнение задач"
                 value={tasks.length > 0 ? taskCompletionRate : null}
               />
               <MetricRow
-                emptyLabel="No closed deals yet"
-                label="Deal Win Rate"
+                emptyLabel="Закрытых сделок нет"
+                label="Выигранные сделки"
                 value={closedDealsCount > 0 ? dealWinRate : null}
               />
               <MetricRow
-                emptyLabel="No closed deals yet"
-                label="Lost Rate"
+                emptyLabel="Закрытых сделок нет"
+                label="Потерянные сделки"
                 value={closedDealsCount > 0 ? dealLostRate : null}
               />
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            description="Complete tasks or close deals as Paid/Lost to calculate completion metrics."
-            title="Not enough completion data"
+            description="Завершите задачи или закройте сделки как оплаченные/потерянные для расчета."
+            title="Недостаточно данных"
           />
         )}
       </section>
@@ -353,7 +354,7 @@ function BreakdownRow({
         <div className="min-w-0">
           <Badge tone={tone}>{label}</Badge>
           <p className="mt-2 text-xs text-app-muted">
-            {count} deals · {percent}% of total
+            {count} сделок · {percent}% от всех
           </p>
         </div>
         <p className="shrink-0 text-sm font-semibold text-white">{amount}</p>

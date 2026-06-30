@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { formatDealStatus, labels } from "@/lib/labels";
 import type { DealUpsertInput } from "@/lib/services/deals";
 
 const DEAL_STATUSES: DealStatus[] = ["New", "Negotiation", "Waiting Payment", "Paid", "Lost"];
@@ -120,7 +121,7 @@ export function DealsScreen({
     const query = normalizeSearch(searchQuery);
 
     return deals.filter((deal) => {
-      const clientName = clientNameById.get(deal.clientId) ?? "Unknown client";
+      const clientName = clientNameById.get(deal.clientId) ?? labels.common.unknownClient;
       const matchesStatus = statusFilter === "All" || deal.status === statusFilter;
       const searchable = [
         deal.title,
@@ -239,31 +240,31 @@ export function DealsScreen({
         <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-accent-green/20 blur-2xl" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-app-muted">Deal pipeline</p>
+            <p className="text-sm font-medium text-app-muted">Воронка сделок</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">
               {moneyFormatter.format(totalPipeline)}
             </p>
             <p className="mt-1 text-sm text-slate-300">
-              {deals.length} total deals
+              {deals.length} сделок всего
             </p>
           </div>
-          <Button onClick={openAddForm}>Add Deal</Button>
+          <Button onClick={openAddForm}>Добавить сделку</Button>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <SummaryTile label="Active" value={moneyFormatter.format(activePipeline)} />
-          <SummaryTile label="Paid revenue" value={moneyFormatter.format(paidRevenue)} />
-          <SummaryTile label="Lost" value={moneyFormatter.format(lostAmount)} />
-          <SummaryTile label="Total count" value={String(deals.length)} />
+          <SummaryTile label="Активная" value={moneyFormatter.format(activePipeline)} />
+          <SummaryTile label="Оплачено" value={moneyFormatter.format(paidRevenue)} />
+          <SummaryTile label="Потеряно" value={moneyFormatter.format(lostAmount)} />
+          <SummaryTile label="Всего" value={String(deals.length)} />
         </div>
       </GlassCard>
 
       <GlassCard className="p-4">
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold text-app-muted">Search deals</span>
+          <span className="mb-2 block text-xs font-semibold text-app-muted">Поиск сделок</span>
           <input
             className={inputClass}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Title, client, status, amount"
+            placeholder="Название, клиент, статус, сумма"
             value={searchQuery}
           />
         </label>
@@ -282,7 +283,7 @@ export function DealsScreen({
                 onClick={() => setStatusFilter(status)}
                 type="button"
               >
-                {status}
+                {status === "All" ? "Все" : formatDealStatus(status)}
               </button>
             );
           })}
@@ -291,22 +292,22 @@ export function DealsScreen({
 
       <section>
         <SectionHeader
-          action={`${filteredDeals.length} shown`}
-          eyebrow="Deals"
-          title="Pipeline"
+          action={`${filteredDeals.length} показано`}
+          eyebrow="Сделки"
+          title="Воронка"
         />
         <div className="space-y-5">
           {deals.length === 0 ? (
             <EmptyState
-              actionLabel="Add Deal"
-              description="Add the first opportunity and connect it to a client."
+              actionLabel="Добавить сделку"
+              description="Добавьте первую возможность и привяжите ее к клиенту."
               onAction={openAddForm}
-              title="No deals yet"
+              title="Сделок пока нет"
             />
           ) : filteredDeals.length === 0 ? (
             <EmptyState
-              description="No deals match the current search or status filter."
-              title="No deal results"
+              description="По текущему поиску или статусу сделок не найдено."
+              title="Сделки не найдены"
             />
           ) : (
             visibleStages.map((stage) => {
@@ -317,9 +318,9 @@ export function DealsScreen({
                 <section className="space-y-3" key={stage}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-white">{stage}</h3>
+                      <h3 className="font-semibold text-white">{formatDealStatus(stage)}</h3>
                       <p className="text-xs text-app-muted">
-                        {stageDeals.length} deals · {moneyFormatter.format(stageAmount)}
+                        {stageDeals.length} сделок · {moneyFormatter.format(stageAmount)}
                       </p>
                     </div>
                     <Badge tone={getStatusTone(stage)}>{stageDeals.length}</Badge>
@@ -342,23 +343,25 @@ export function DealsScreen({
                               <div className="min-w-0">
                                 <h4 className="truncate font-semibold text-white">{deal.title}</h4>
                                 <p className="mt-1 text-sm text-app-muted">
-                                  {clientNameById.get(deal.clientId) ?? "Unknown client"}
+                                  {clientNameById.get(deal.clientId) ?? labels.common.unknownClient}
                                 </p>
                                 <p className="mt-2 text-xs text-slate-400">
-                                  Updated {deal.updatedAt} · Created {deal.createdAt}
+                                  Обновлено {deal.updatedAt} · создано {deal.createdAt}
                                 </p>
                               </div>
-                              <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                              <Badge tone={getStatusTone(deal.status)}>
+                                {formatDealStatus(deal.status)}
+                              </Badge>
                             </div>
                             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/[0.07] px-3 py-2">
-                              <span className="text-xs text-app-muted">Amount</span>
+                              <span className="text-xs text-app-muted">Сумма</span>
                               <span className="text-sm font-semibold text-white">
                                 {moneyFormatter.format(deal.amount)}
                               </span>
                             </div>
                             <div className="mt-3">
                               <div className="mb-2 flex items-center justify-between text-xs text-app-muted">
-                                <span>Probability</span>
+                                <span>Вероятность</span>
                                 <span>{deal.probability}%</span>
                               </div>
                               <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
@@ -378,7 +381,7 @@ export function DealsScreen({
                                 }
                                 variant="ghost"
                               >
-                                Move previous
+                                Предыдущий этап
                               </Button>
                               <Button
                                 disabled={!nextStatus || deal.status === "Lost" || isSubmitting}
@@ -387,28 +390,28 @@ export function DealsScreen({
                                 }
                                 variant="secondary"
                               >
-                                Move next
+                                Следующий этап
                               </Button>
                               <Button
                                 disabled={deal.status === "Paid" || isSubmitting}
                                 onClick={() => void changeDealStatus(deal, "Paid")}
                                 variant="secondary"
                               >
-                                Mark Paid
+                                Отметить как оплачено
                               </Button>
                               <Button
                                 disabled={deal.status === "Lost" || isSubmitting}
                                 onClick={() => void changeDealStatus(deal, "Lost")}
                                 variant="ghost"
                               >
-                                Mark Lost
+                                Отметить как потеряно
                               </Button>
                               <Button
                                 disabled={isSubmitting}
                                 onClick={() => openEditForm(deal)}
                                 variant="secondary"
                               >
-                                Edit
+                                Изменить
                               </Button>
                               <Button
                                 className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
@@ -416,7 +419,7 @@ export function DealsScreen({
                                 onClick={() => setDealToDelete(deal)}
                                 variant="ghost"
                               >
-                                Delete
+                                Удалить
                               </Button>
                             </div>
                           </GlassCard>
@@ -425,9 +428,11 @@ export function DealsScreen({
                     </div>
                   ) : (
                     <GlassCard className="p-4">
-                      <p className="text-sm font-medium text-white">No deals in {stage}</p>
+                      <p className="text-sm font-medium text-white">
+                        Нет сделок на этапе {formatDealStatus(stage)}
+                      </p>
                       <p className="mt-1 text-xs text-app-muted">
-                        Deals moved to this stage will appear here.
+                        Сделки, переведенные на этот этап, появятся здесь.
                       </p>
                     </GlassCard>
                   )}
@@ -444,24 +449,24 @@ export function DealsScreen({
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-                  {formMode === "add" ? "New deal" : "Edit deal"}
+                  {formMode === "add" ? "Новая сделка" : "Редактирование сделки"}
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-white">
-                  {formMode === "add" ? "Add Deal" : "Update Deal"}
+                  {formMode === "add" ? "Добавить сделку" : "Обновить сделку"}
                 </h2>
               </div>
               <button
-                aria-label="Close deal form"
+                aria-label="Закрыть форму сделки"
                 className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
                 onClick={closeForm}
                 type="button"
               >
-                Close
+                Закрыть
               </button>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <Field label="Client">
+              <Field label="Клиент">
                 <select
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, clientId: event.target.value })}
@@ -475,16 +480,16 @@ export function DealsScreen({
                   ))}
                 </select>
               </Field>
-              <Field label="Title">
+              <Field label="Название">
                 <input
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, title: event.target.value })}
-                  placeholder="Website redesign"
+                  placeholder="Редизайн сайта"
                   required
                   value={form.title}
                 />
               </Field>
-              <Field label="Amount">
+              <Field label="Сумма">
                 <input
                   className={inputClass}
                   inputMode="numeric"
@@ -497,7 +502,7 @@ export function DealsScreen({
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Status">
+                <Field label="Статус">
                   <select
                     className={inputClass}
                     onChange={(event) =>
@@ -507,12 +512,12 @@ export function DealsScreen({
                   >
                     {DEAL_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {formatDealStatus(status)}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Probability">
+                <Field label="Вероятность">
                   <input
                     className={inputClass}
                     inputMode="numeric"
@@ -527,10 +532,10 @@ export function DealsScreen({
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button disabled={isSubmitting} onClick={closeForm} variant="ghost">
-                  Cancel
+                  Отмена
                 </Button>
                 <Button disabled={!form.clientId || isSubmitting} type="submit">
-                  {isSubmitting ? "Saving..." : formMode === "add" ? "Create" : "Save"}
+                  {isSubmitting ? "Сохранение..." : formMode === "add" ? "Создать" : "Сохранить"}
                 </Button>
               </div>
             </form>
@@ -540,10 +545,10 @@ export function DealsScreen({
 
       {dealToDelete ? (
         <ConfirmDialog
-          body={`Delete "${dealToDelete.title}"? This removes it from Supabase.`}
+          body={`Удалить "${dealToDelete.title}"? Запись будет удалена из Supabase.`}
           onCancel={() => setDealToDelete(null)}
           onConfirm={() => void confirmDeleteDeal(dealToDelete.id)}
-          title="Delete deal"
+          title="Удалить сделку"
         />
       ) : null}
     </section>

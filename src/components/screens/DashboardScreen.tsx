@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { formatDealStatus, formatPriority, formatTaskDue, labels } from "@/lib/labels";
 
 interface DashboardScreenProps {
   activities: Activity[];
@@ -106,77 +107,77 @@ export function DashboardScreen({
     <section className="space-y-6">
       <GlassCard className="p-5">
         <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent-cyan/20 blur-2xl" />
-        <p className="text-sm font-medium text-app-muted">CRM command center</p>
+        <p className="text-sm font-medium text-app-muted">Рабочий центр CRM</p>
         <div className="mt-3 flex items-end justify-between gap-3">
           <div>
             <p className="text-3xl font-bold tracking-tight text-white">
               {moneyFormatter.format(activePipelineAmount)}
             </p>
-            <p className="mt-1 text-sm text-slate-300">Active pipeline amount</p>
+            <p className="mt-1 text-sm text-slate-300">Сумма активной воронки</p>
           </div>
           <Badge tone={overdueTasks.length > 0 ? "red" : "cyan"}>
-            {todayTasks.length} today · {overdueTasks.length} overdue
+            {todayTasks.length} сегодня · {overdueTasks.length} просрочено
           </Badge>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <Button onClick={onAddClient}>Add Client</Button>
+          <Button onClick={onAddClient}>Добавить клиента</Button>
           <Button onClick={() => onOpenTab("tasks")} variant="secondary">
-            Open Tasks
+            Открыть задачи
           </Button>
           <Button onClick={() => onOpenTab("deals")} variant="secondary">
-            Open Deals
+            Открыть сделки
           </Button>
           <Button onClick={() => onOpenTab("deals")} variant="ghost">
-            Open Pipeline
+            Открыть воронку
           </Button>
         </div>
         {overdueTasks.length > 0 ? (
           <Button className="mt-3 w-full" onClick={() => onOpenTab("tasks")} variant="ghost">
-            Open Overdue Tasks
+            Открыть просроченные задачи
           </Button>
         ) : null}
       </GlassCard>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard
-          detail="Real client rows"
-          label="Total clients"
+          detail="Все клиенты"
+          label="Клиенты"
           tone="blue"
           value={String(clients.length)}
         />
         <StatCard
-          detail="New, negotiation, waiting"
-          label="Active deals"
+          detail="Новые, переговоры, ожидание оплаты"
+          label="Активные сделки"
           tone="purple"
           value={String(activeDeals.length)}
         />
         <StatCard
-          detail="Excludes paid and lost"
-          label="Active pipeline"
+          detail="Без оплаченных и потерянных"
+          label="Активная воронка"
           tone="green"
           value={moneyFormatter.format(activePipelineAmount)}
         />
         <StatCard
-          detail="Paid deals only"
-          label="Paid revenue"
+          detail="Только оплаченные сделки"
+          label="Оплачено"
           tone="green"
           value={moneyFormatter.format(paidRevenue)}
         />
         <StatCard
-          detail="Not Done"
-          label="Active tasks"
+          detail="Не выполнены"
+          label="Активные задачи"
           tone="cyan"
           value={String(activeTasks.length)}
         />
         <StatCard
-          detail="Active and past due"
-          label="Overdue tasks"
+          detail="Активные и просроченные"
+          label="Просрочено"
           tone="purple"
           value={String(overdueTasks.length)}
         />
         <StatCard
-          detail="Active and due today"
-          label="Today tasks"
+          detail="Активные на сегодня"
+          label="Сегодня"
           tone="cyan"
           value={String(todayTasks.length)}
         />
@@ -184,15 +185,15 @@ export function DashboardScreen({
 
       {clients.length === 0 ? (
         <EmptyState
-          actionLabel="Add Client"
-          description="Create the first client to connect tasks, deals, and activity."
+          actionLabel="Добавить клиента"
+          description="Создайте первого клиента, чтобы связать задачи, сделки и действия."
           onAction={onAddClient}
-          title="No clients yet"
+          title="Клиентов пока нет"
         />
       ) : null}
 
       <section>
-        <SectionHeader action="Urgent work" eyebrow="Focus" title="Focus Today" />
+        <SectionHeader action="Срочная работа" eyebrow="Фокус" title="Фокус на сегодня" />
         {hasUrgentFocus ? (
           <div className="space-y-3">
             {focusTasks.map((task) => {
@@ -204,13 +205,14 @@ export function DashboardScreen({
                     <div className="min-w-0">
                       <h3 className="truncate font-semibold text-white">{task.title}</h3>
                       <p className="mt-1 text-sm text-app-muted">
-                        {clientNameById.get(task.clientId) ?? "Unknown client"}
+                        {clientNameById.get(task.clientId) ?? labels.common.unknownClient}
                       </p>
                       <p className="mt-2 text-xs text-slate-400">
-                        Due {normalizeDateKey(task.dueDate) || "not set"} · {task.priority}
+                        Срок {normalizeDateKey(task.dueDate) || labels.common.notSet} ·{" "}
+                        {formatPriority(task.priority)}
                       </p>
                     </div>
-                    <Badge tone={getStatusTone(dueState)}>{dueState}</Badge>
+                    <Badge tone={getStatusTone(dueState)}>{formatTaskDue(dueState)}</Badge>
                   </div>
                 </GlassCard>
               );
@@ -222,14 +224,14 @@ export function DashboardScreen({
                   <div className="min-w-0">
                     <h3 className="truncate font-semibold text-white">{deal.title}</h3>
                     <p className="mt-1 text-sm text-app-muted">
-                      {clientNameById.get(deal.clientId) ?? "Unknown client"}
+                      {clientNameById.get(deal.clientId) ?? labels.common.unknownClient}
                     </p>
                     <p className="mt-2 text-xs text-slate-400">
-                      {deal.probability}% probability
+                      Вероятность {deal.probability}%
                     </p>
                   </div>
                   <div className="text-right">
-                    <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                    <Badge tone={getStatusTone(deal.status)}>{formatDealStatus(deal.status)}</Badge>
                     <p className="mt-2 text-sm font-semibold text-white">
                       {moneyFormatter.format(deal.amount)}
                     </p>
@@ -240,36 +242,36 @@ export function DashboardScreen({
           </div>
         ) : (
           <EmptyState
-            description="No overdue tasks, tasks due today, or waiting payment deals right now."
-            title="Nothing urgent"
+            description="Нет просроченных задач, задач на сегодня или сделок в ожидании оплаты."
+            title="Срочных действий нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader action={`${tasks.length} total`} eyebrow="Tasks" title="Task snapshot" />
+        <SectionHeader action={`${tasks.length} всего`} eyebrow="Задачи" title="Сводка задач" />
         {tasks.length > 0 ? (
           <GlassCard className="p-4">
             <div className="grid grid-cols-2 gap-2">
-              <SnapshotMetric label="Active" value={activeTasks.length} />
-              <SnapshotMetric label="Done" value={doneTasks.length} />
-              <SnapshotMetric label="Overdue" tone="red" value={overdueTasks.length} />
-              <SnapshotMetric label="Today" tone="cyan" value={todayTasks.length} />
-              <SnapshotMetric label="Upcoming" value={upcomingTasks.length} />
+              <SnapshotMetric label="Активные" value={activeTasks.length} />
+              <SnapshotMetric label="Выполнены" value={doneTasks.length} />
+              <SnapshotMetric label="Просрочены" tone="red" value={overdueTasks.length} />
+              <SnapshotMetric label="Сегодня" tone="cyan" value={todayTasks.length} />
+              <SnapshotMetric label="Предстоящие" value={upcomingTasks.length} />
             </div>
           </GlassCard>
         ) : (
           <EmptyState
-            actionLabel="Open Tasks"
-            description="Create tasks to track today, overdue, and upcoming work."
+            actionLabel="Открыть задачи"
+            description="Создайте задачи, чтобы отслеживать работу на сегодня, просрочку и будущие дела."
             onAction={() => onOpenTab("tasks")}
-            title="No tasks yet"
+            title="Задач пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader action={`${deals.length} total`} eyebrow="Deals" title="Pipeline snapshot" />
+        <SectionHeader action={`${deals.length} всего`} eyebrow="Сделки" title="Сводка воронки" />
         {deals.length > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-3">
@@ -284,10 +286,10 @@ export function DashboardScreen({
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Badge tone={getStatusTone(status)}>{status}</Badge>
+                        <Badge tone={getStatusTone(status)}>{formatDealStatus(status)}</Badge>
                         <span className="text-xs text-app-muted">{stageDeals.length}</span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">{stageDeals.length} deals</p>
+                      <p className="mt-1 text-xs text-slate-400">{stageDeals.length} сделок</p>
                     </div>
                     <p className="shrink-0 text-sm font-semibold text-white">
                       {moneyFormatter.format(stageAmount)}
@@ -297,7 +299,7 @@ export function DashboardScreen({
               })}
             </div>
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/[0.08] px-3 py-2">
-              <span className="text-xs text-app-muted">Lost amount</span>
+              <span className="text-xs text-app-muted">Потеряно</span>
               <span className="text-sm font-semibold text-white">
                 {moneyFormatter.format(sumDeals(lostDeals))}
               </span>
@@ -305,16 +307,16 @@ export function DashboardScreen({
           </GlassCard>
         ) : (
           <EmptyState
-            actionLabel="Open Deals"
-            description="Create deals to see the pipeline by stage."
+            actionLabel="Открыть сделки"
+            description="Создайте сделки, чтобы увидеть воронку по этапам."
             onAction={() => onOpenTab("deals")}
-            title="No deals yet"
+            title="Сделок пока нет"
           />
         )}
       </section>
 
       <section>
-        <SectionHeader eyebrow="Activity" title="Recent Activity" />
+        <SectionHeader eyebrow="Активность" title="Последние действия" />
         {recentActivity.length > 0 ? (
           <GlassCard className="p-4">
             <div className="space-y-4">
@@ -336,8 +338,8 @@ export function DashboardScreen({
           </GlassCard>
         ) : (
           <EmptyState
-            description="Create or update clients, tasks, and deals to see recent activity here."
-            title="No activity yet"
+            description="Создавайте или обновляйте клиентов, задачи и сделки, чтобы видеть действия здесь."
+            title="Действий пока нет"
           />
         )}
       </section>

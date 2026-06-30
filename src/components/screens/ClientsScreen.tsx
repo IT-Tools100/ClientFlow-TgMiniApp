@@ -18,6 +18,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getActivitiesByClientId } from "@/lib/services/activities";
+import {
+  formatClientStatus,
+  formatDealStatus,
+  formatPriority,
+  formatTaskStatus,
+  labels
+} from "@/lib/labels";
 import type { ClientUpsertInput } from "@/lib/services/clients";
 import { getClientById } from "@/lib/services/clients";
 import { getDealsByClientId, type DealUpsertInput } from "@/lib/services/deals";
@@ -360,7 +367,7 @@ export function ClientsScreen({
           }
 
           setClientDetailsError(
-            error instanceof Error ? error.message : "Failed to load client workspace"
+            error instanceof Error ? error.message : "Не удалось загрузить карточку клиента"
           );
         })
         .finally(() => {
@@ -381,13 +388,13 @@ export function ClientsScreen({
         <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-accent-blue/20 blur-2xl" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-app-muted">Client workspace</p>
+            <p className="text-sm font-medium text-app-muted">Карточка клиента</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-white">{clients.length}</p>
             <p className="mt-1 text-sm text-slate-300">
-              {moneyFormatter.format(totalValue)} total client value
+              {moneyFormatter.format(totalValue)} общая ценность клиентов
             </p>
           </div>
-          <Button onClick={openAddForm}>Add Client</Button>
+          <Button onClick={openAddForm}>Добавить клиента</Button>
         </div>
       </GlassCard>
 
@@ -396,7 +403,7 @@ export function ClientsScreen({
           <input
             className={inputClass}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search name, contact, source"
+            placeholder="Поиск по имени, контакту, источнику"
             type="search"
             value={query}
           />
@@ -415,7 +422,7 @@ export function ClientsScreen({
                   onClick={() => setStatusFilter(status)}
                   type="button"
                 >
-                  {status}
+                  {status === "All" ? "Все" : formatClientStatus(status)}
                 </button>
               );
             })}
@@ -425,9 +432,9 @@ export function ClientsScreen({
 
       <section>
         <SectionHeader
-          action={`${filteredClients.length} shown`}
+          action={`${filteredClients.length} показано`}
           eyebrow="CRM"
-          title="Clients"
+          title="Клиенты"
         />
         <div className="space-y-3">
           {filteredClients.length > 0 ? (
@@ -445,41 +452,43 @@ export function ClientsScreen({
                       {client.source} · {client.createdAt}
                     </p>
                   </button>
-                  <Badge tone={getStatusTone(client.status)}>{client.status}</Badge>
+                  <Badge tone={getStatusTone(client.status)}>
+                    {formatClientStatus(client.status)}
+                  </Badge>
                 </div>
                 <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/[0.07] px-3 py-2">
-                  <span className="text-xs text-app-muted">Value</span>
+                  <span className="text-xs text-app-muted">Ценность</span>
                   <span className="text-sm font-semibold text-white">
                     {moneyFormatter.format(client.value)}
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <Button onClick={() => openClientWorkspace(client)} variant="ghost">
-                    Details
+                    Карточка
                   </Button>
                   <Button onClick={() => openEditForm(client)} variant="secondary">
-                    Edit
+                    Изменить
                   </Button>
                   <Button
                     className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
                     onClick={() => setClientToDelete(client)}
                     variant="ghost"
                   >
-                    Delete
+                    Удалить
                   </Button>
                 </div>
               </GlassCard>
             ))
           ) : (
             <EmptyState
-              actionLabel="Add Client"
+              actionLabel="Добавить клиента"
               description={
                 clients.length === 0
-                  ? "Start your client base with the first lead, contact, source, and deal value."
-                  : "No clients match the current search or status filter. Try clearing the query."
+                  ? "Добавьте первого лида с контактом, источником и ценностью."
+                  : "Клиенты не найдены. Попробуйте изменить поиск или фильтр."
               }
               onAction={openAddForm}
-              title={clients.length === 0 ? "No clients yet" : "No client results"}
+              title={clients.length === 0 ? "Клиентов пока нет" : "Клиенты не найдены"}
             />
           )}
         </div>
@@ -491,19 +500,19 @@ export function ClientsScreen({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-                  Client workspace
+                  Карточка клиента
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-white">
-                  {clientDetails?.name ?? "Client"}
+                  {clientDetails?.name ?? "Клиент"}
                 </h2>
               </div>
               <button
-                aria-label="Close client workspace"
+                aria-label="Закрыть карточку клиента"
                 className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
                 onClick={closeClientWorkspace}
                 type="button"
               >
-                Close
+                Закрыть
               </button>
             </div>
 
@@ -511,7 +520,7 @@ export function ClientsScreen({
               <div className="mt-5 rounded-2xl border border-accent-red/30 bg-accent-red/[0.12] p-4">
                 <p className="text-sm leading-6 text-rose-100">{clientDetailsError}</p>
                 <Button className="mt-3 w-full" onClick={refreshClientWorkspace} variant="ghost">
-                  Retry
+                  Повторить
                 </Button>
               </div>
             ) : null}
@@ -519,39 +528,41 @@ export function ClientsScreen({
             {clientDetails ? (
               <>
                 <div className="mt-5 space-y-3">
-                  <DetailRow label="Contact" value={clientDetails.contact || "Not specified"} />
-                  <DetailRow label="Source" value={clientDetails.source || "Not specified"} />
-                  <DetailRow label="Value" value={moneyFormatter.format(clientDetails.value)} />
-                  <DetailRow label="Created" value={formatDateTime(clientDetails.createdAt)} />
-                  <DetailRow label="Updated" value={formatDateTime(clientDetails.updatedAt)} />
+                  <DetailRow label="Контакт" value={clientDetails.contact || "Не указано"} />
+                  <DetailRow label="Источник" value={clientDetails.source || "Не указано"} />
+                  <DetailRow label="Ценность" value={moneyFormatter.format(clientDetails.value)} />
+                  <DetailRow label="Создан" value={formatDateTime(clientDetails.createdAt)} />
+                  <DetailRow label="Обновлен" value={formatDateTime(clientDetails.updatedAt)} />
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
-                    <p className="mb-2 text-xs text-app-muted">Status</p>
-                    <Badge tone={getStatusTone(clientDetails.status)}>{clientDetails.status}</Badge>
+                    <p className="mb-2 text-xs text-app-muted">Статус</p>
+                    <Badge tone={getStatusTone(clientDetails.status)}>
+                      {formatClientStatus(clientDetails.status)}
+                    </Badge>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
-                    <p className="mb-2 text-xs text-app-muted">Notes</p>
+                    <p className="mb-2 text-xs text-app-muted">Заметки</p>
                     <p className="text-sm leading-6 text-white">
-                      {clientDetails.notes || "No notes yet."}
+                      {clientDetails.notes || "Заметок пока нет."}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <Button onClick={() => openEditForm(clientDetails)} variant="secondary">
-                    Edit
+                    Изменить
                   </Button>
                   <Button
                     className="border border-accent-red/30 bg-accent-red/[0.12] text-rose-100 hover:bg-accent-red/[0.18]"
                     onClick={() => setClientToDelete(clientDetails)}
                     variant="ghost"
                   >
-                    Delete
+                    Удалить
                   </Button>
                   <Button onClick={() => setQuickFormMode("task")} variant="secondary">
-                    Add Task
+                    Добавить задачу
                   </Button>
                   <Button onClick={() => setQuickFormMode("deal")} variant="secondary">
-                    Add Deal
+                    Добавить сделку
                   </Button>
                 </div>
 
@@ -576,11 +587,11 @@ export function ClientsScreen({
                 ) : null}
 
                 <ClientWorkspaceSection
-                  emptyDescription="There are no Supabase tasks connected to this client yet."
-                  emptyTitle="No client tasks"
+                  emptyDescription="К этому клиенту пока не привязаны задачи из Supabase."
+                  emptyTitle="Задач клиента нет"
                   isLoading={isClientDetailsLoading}
                   itemCount={clientTasks.length}
-                  title="Tasks"
+                  title="Задачи"
                 >
                   {clientTasks.map((task) => (
                     <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={task.id}>
@@ -588,25 +599,27 @@ export function ClientsScreen({
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-white">{task.title}</p>
                           <p className="mt-1 text-xs leading-5 text-app-muted">
-                            {task.description || "No description."}
+                            {task.description || "Описание не указано."}
                           </p>
                         </div>
-                        <Badge tone={getStatusTone(task.status)}>{task.status}</Badge>
+                        <Badge tone={getStatusTone(task.status)}>
+                          {formatTaskStatus(task.status)}
+                        </Badge>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <InfoPill label="Due" value={task.dueDate} />
-                        <InfoPill label="Priority" value={task.priority} />
+                        <InfoPill label="Срок" value={task.dueDate} />
+                        <InfoPill label="Приоритет" value={formatPriority(task.priority)} />
                       </div>
                     </div>
                   ))}
                 </ClientWorkspaceSection>
 
                 <ClientWorkspaceSection
-                  emptyDescription="There are no Supabase deals connected to this client yet."
-                  emptyTitle="No client deals"
+                  emptyDescription="К этому клиенту пока не привязаны сделки из Supabase."
+                  emptyTitle="Сделок клиента нет"
                   isLoading={isClientDetailsLoading}
                   itemCount={clientDeals.length}
-                  title="Deals"
+                  title="Сделки"
                 >
                   {clientDeals.map((deal) => (
                     <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={deal.id}>
@@ -617,21 +630,23 @@ export function ClientsScreen({
                             {moneyFormatter.format(deal.amount)} · {deal.probability}%
                           </p>
                         </div>
-                        <Badge tone={getStatusTone(deal.status)}>{deal.status}</Badge>
+                        <Badge tone={getStatusTone(deal.status)}>
+                          {formatDealStatus(deal.status)}
+                        </Badge>
                       </div>
                       <p className="mt-3 text-xs text-slate-400">
-                        Updated {formatDateTime(deal.updatedAt)}
+                        Обновлено {formatDateTime(deal.updatedAt)}
                       </p>
                     </div>
                   ))}
                 </ClientWorkspaceSection>
 
                 <ClientWorkspaceSection
-                  emptyDescription="There is no Supabase activity history for this client yet."
-                  emptyTitle="No client activity"
+                  emptyDescription="Истории действий по этому клиенту пока нет."
+                  emptyTitle="Действий клиента нет"
                   isLoading={isClientDetailsLoading}
                   itemCount={clientActivities.length}
-                  title="Activity"
+                  title="Действия"
                 >
                   {clientActivities.map((activity) => (
                     <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3" key={activity.id}>
@@ -651,7 +666,7 @@ export function ClientsScreen({
               </>
             ) : (
               <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.07] p-4">
-                <p className="text-sm text-app-muted">Loading client workspace...</p>
+                <p className="text-sm text-app-muted">Загрузка карточки клиента...</p>
               </div>
             )}
           </GlassCard>
@@ -664,51 +679,51 @@ export function ClientsScreen({
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-cyan/80">
-                  {formMode === "add" ? "New client" : "Edit client"}
+                  {formMode === "add" ? "Новый клиент" : "Редактирование клиента"}
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-white">
-                  {formMode === "add" ? "Add Client" : "Update Client"}
+                  {formMode === "add" ? "Добавить клиента" : "Обновить клиента"}
                 </h2>
               </div>
               <button
-                aria-label="Close client form"
+                aria-label="Закрыть форму клиента"
                 className="tap-highlight rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white"
                 onClick={closeForm}
                 type="button"
               >
-                Close
+                Закрыть
               </button>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <Field label="Name">
+              <Field label="Имя">
                 <input
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder="Mila Petrova"
+                  placeholder="Мила Петрова"
                   required
                   value={form.name}
                 />
               </Field>
-              <Field label="Contact">
+              <Field label="Контакт">
                 <input
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, contact: event.target.value })}
-                  placeholder="@username or phone"
+                  placeholder="@username или телефон"
                   required
                   value={form.contact}
                 />
               </Field>
-              <Field label="Source">
+              <Field label="Источник">
                 <input
                   className={inputClass}
                   onChange={(event) => setForm({ ...form, source: event.target.value })}
-                  placeholder="Telegram, Referral, Instagram"
+                  placeholder="Telegram, рекомендация, Instagram"
                   required
                   value={form.source}
                 />
               </Field>
-              <Field label="Status">
+              <Field label="Статус">
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -718,12 +733,12 @@ export function ClientsScreen({
                 >
                   {CLIENT_STATUSES.map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {formatClientStatus(status)}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Value">
+              <Field label="Ценность">
                 <input
                   className={inputClass}
                   inputMode="numeric"
@@ -735,20 +750,20 @@ export function ClientsScreen({
                   value={form.value}
                 />
               </Field>
-              <Field label="Notes">
+              <Field label="Заметки">
                 <textarea
                   className={`${inputClass} min-h-28 resize-none py-3`}
                   onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                  placeholder="Short context, next steps, agreements"
+                  placeholder="Краткий контекст, следующие шаги, договоренности"
                   value={form.notes}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button disabled={isSubmitting} onClick={closeForm} variant="ghost">
-                  Cancel
+                  Отмена
                 </Button>
                 <Button disabled={isSubmitting} type="submit">
-                  {isSubmitting ? "Saving..." : formMode === "add" ? "Create" : "Save"}
+                  {isSubmitting ? "Сохранение..." : formMode === "add" ? "Создать" : "Сохранить"}
                 </Button>
               </div>
             </form>
@@ -758,10 +773,10 @@ export function ClientsScreen({
 
       {clientToDelete ? (
         <ConfirmDialog
-          body={`Delete ${clientToDelete.name}? This removes it from Supabase.`}
+          body={`Удалить ${clientToDelete.name}? Запись будет удалена из Supabase.`}
           onCancel={() => setClientToDelete(null)}
           onConfirm={() => void confirmDeleteClient(clientToDelete.id)}
-          title="Delete client"
+          title="Удалить клиента"
         />
       ) : null}
     </section>
@@ -825,7 +840,7 @@ function ClientWorkspaceSection({
       ) : null}
       {itemCount === 0 && isLoading ? (
         <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
-          <p className="text-sm text-app-muted">Loading...</p>
+          <p className="text-sm text-app-muted">Загрузка...</p>
         </div>
       ) : null}
     </section>
@@ -847,25 +862,25 @@ function QuickTaskForm({
 }) {
   return (
     <form className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-white/[0.07] p-4" onSubmit={onSubmit}>
-      <p className="text-sm font-semibold text-white">Quick task</p>
-      <Field label="Title">
+      <p className="text-sm font-semibold text-white">Быстрая задача</p>
+      <Field label="Название">
         <input
           className={inputClass}
           onChange={(event) => onChange({ ...form, title: event.target.value })}
-          placeholder="Follow up with client"
+          placeholder="Связаться с клиентом"
           required
           value={form.title}
         />
       </Field>
-      <Field label="Description">
+      <Field label="Описание">
         <textarea
           className={`${inputClass} min-h-24 resize-none py-3`}
           onChange={(event) => onChange({ ...form, description: event.target.value })}
-          placeholder="What needs to be done?"
+          placeholder="Что нужно сделать?"
           value={form.description}
         />
       </Field>
-      <Field label="Due date">
+      <Field label="Срок">
         <input
           className={inputClass}
           onChange={(event) => onChange({ ...form, dueDate: event.target.value })}
@@ -875,7 +890,7 @@ function QuickTaskForm({
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Status">
+        <Field label="Статус">
           <select
             className={inputClass}
             onChange={(event) => onChange({ ...form, status: event.target.value as TaskStatus })}
@@ -883,12 +898,12 @@ function QuickTaskForm({
           >
             {TASK_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {formatTaskStatus(status)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Priority">
+        <Field label="Приоритет">
           <select
             className={inputClass}
             onChange={(event) =>
@@ -898,7 +913,7 @@ function QuickTaskForm({
           >
             {TASK_PRIORITIES.map((priority) => (
               <option key={priority} value={priority}>
-                {priority}
+                {formatPriority(priority)}
               </option>
             ))}
           </select>
@@ -906,10 +921,10 @@ function QuickTaskForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Button disabled={isSubmitting} onClick={onCancel} variant="ghost">
-          Cancel
+          Отмена
         </Button>
         <Button disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving..." : "Create Task"}
+          {isSubmitting ? "Сохранение..." : "Создать задачу"}
         </Button>
       </div>
     </form>
@@ -931,17 +946,17 @@ function QuickDealForm({
 }) {
   return (
     <form className="mt-5 space-y-4 rounded-2xl border border-white/10 bg-white/[0.07] p-4" onSubmit={onSubmit}>
-      <p className="text-sm font-semibold text-white">Quick deal</p>
-      <Field label="Title">
+      <p className="text-sm font-semibold text-white">Быстрая сделка</p>
+      <Field label="Название">
         <input
           className={inputClass}
           onChange={(event) => onChange({ ...form, title: event.target.value })}
-          placeholder="Website redesign"
+          placeholder="Редизайн сайта"
           required
           value={form.title}
         />
       </Field>
-      <Field label="Amount">
+      <Field label="Сумма">
         <input
           className={inputClass}
           inputMode="numeric"
@@ -954,7 +969,7 @@ function QuickDealForm({
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Status">
+        <Field label="Статус">
           <select
             className={inputClass}
             onChange={(event) => onChange({ ...form, status: event.target.value as DealStatus })}
@@ -962,12 +977,12 @@ function QuickDealForm({
           >
             {DEAL_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {formatDealStatus(status)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Probability">
+        <Field label="Вероятность">
           <input
             className={inputClass}
             inputMode="numeric"
@@ -982,10 +997,10 @@ function QuickDealForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Button disabled={isSubmitting} onClick={onCancel} variant="ghost">
-          Cancel
+          Отмена
         </Button>
         <Button disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving..." : "Create Deal"}
+          {isSubmitting ? "Сохранение..." : "Создать сделку"}
         </Button>
       </div>
     </form>
@@ -998,7 +1013,7 @@ function formatDateTime(value: string) {
     return value;
   }
 
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString("ru-RU", {
     dateStyle: "medium",
     timeStyle: "short"
   });
