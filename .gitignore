@@ -70,3 +70,4 @@ vite.config.ts.timestamp-*
 **/.vitepress/cache
 .vuepress/dist
 .temp
+design/references/
